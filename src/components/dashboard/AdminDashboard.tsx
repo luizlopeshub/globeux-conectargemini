@@ -14,10 +14,10 @@ const barData = [
 ]
 
 const pieData = [
-  { name: 'Pneus Avariados', value: 400, color: 'var(--chart-4)' },
-  { name: 'Atraso na Doca', value: 300, color: 'var(--chart-2)' },
-  { name: 'Lacre Violado', value: 300, color: 'var(--chart-5)' },
-  { name: 'Outros', value: 200, color: 'var(--chart-1)' },
+  { name: 'Pneus Avariados', value: 400, color: 'hsl(var(--chart-4))' },
+  { name: 'Atraso na Doca', value: 300, color: 'hsl(var(--chart-2))' },
+  { name: 'Lacre Violado', value: 300, color: 'hsl(var(--chart-5))' },
+  { name: 'Outros', value: 200, color: 'hsl(var(--chart-1))' },
 ]
 
 export function AdminDashboard() {
