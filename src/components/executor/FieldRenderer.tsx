@@ -18,6 +18,21 @@ interface Props {
 export function FieldRenderer({ field, value, onChange, allAnswers }: Props) {
   const options = field.options ? field.options.split(',').map((s) => s.trim()) : []
 
+  const calcValue = useMemo(() => {
+    if (field.type !== 'calculation' || !field.calculation) return 0
+    try {
+      let formula = field.calculation
+      Object.keys(allAnswers).forEach((key) => {
+        const val = Number(allAnswers[key]) || 0
+        formula = formula.replace(new RegExp(`{{${key}}}`, 'g'), val.toString())
+      })
+      // eslint-disable-next-line no-eval
+      return eval(formula)
+    } catch {
+      return 'Erro na fórmula'
+    }
+  }, [field.type, field.calculation, allAnswers])
+
   const renderInput = () => {
     switch (field.type) {
       case 'text':
@@ -136,22 +151,6 @@ export function FieldRenderer({ field, value, onChange, allAnswers }: Props) {
           </Button>
         )
       case 'calculation':
-        // eslint-disable-next-line react-hooks/rules-of-hooks
-        const calcValue = useMemo(() => {
-          if (!field.calculation) return 0
-          try {
-            let formula = field.calculation
-            Object.keys(allAnswers).forEach((key) => {
-              const val = Number(allAnswers[key]) || 0
-              formula = formula.replace(new RegExp(`{{${key}}}`, 'g'), val.toString())
-            })
-            // eslint-disable-next-line no-eval
-            return eval(formula)
-          } catch {
-            return 'Erro na fórmula'
-          }
-        }, [field.calculation])
-
         return (
           <div className="bg-slate-100 p-4 rounded-md border font-mono text-lg font-semibold text-primary">
             = {calcValue}
