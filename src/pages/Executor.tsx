@@ -38,16 +38,30 @@ export default function Executor() {
   }
 
   const handleSubmit = () => {
-    const visibleFields = template.fields.filter((f) => {
-      if (!f.logicDependsOn) return true
-      return answers[f.logicDependsOn] === f.logicValue
+    const missing = template.fields.find((f) => {
+      // Check if visible by logic
+      if (f.logicDependsOn && answers[f.logicDependsOn] !== f.logicValue) return false
+
+      // Check if it's a repeated field
+      if (f.repeatsBasedOn) {
+        const count = Number(answers[f.repeatsBasedOn]) || 0
+        if (count <= 0) return false
+        if (!f.required) return false
+
+        for (let i = 0; i < count; i++) {
+          if (!answers[`${f.id}_${i}`]) return true
+        }
+        return false
+      }
+
+      if (f.required && !answers[f.id]) return true
+      return false
     })
 
-    const missing = visibleFields.find((f) => f.required && !answers[f.id])
     if (missing) {
       toast({
         title: 'Campos obrigatórios',
-        description: `O campo "${missing.label}" é obrigatório.`,
+        description: `Por favor, preencha os campos marcados como obrigatórios.`,
         variant: 'destructive',
       })
       return
@@ -76,9 +90,42 @@ export default function Executor() {
 
       <div className="space-y-6">
         {template.fields.map((field) => {
+          // Normal logic visibility
           if (field.logicDependsOn && answers[field.logicDependsOn] !== field.logicValue) {
             return null
           }
+
+          // Repeater logic
+          if (field.repeatsBasedOn) {
+            const repeatCount = Number(answers[field.repeatsBasedOn]) || 0
+            if (repeatCount <= 0) return null
+
+            return (
+              <div key={field.id} className="space-y-4 border-l-2 border-primary/30 pl-4 py-2 ml-2">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                  {field.label} ({repeatCount}x)
+                </h3>
+                {Array.from({ length: repeatCount }).map((_, i) => {
+                  const repeatedId = `${field.id}_${i}`
+                  return (
+                    <div
+                      key={repeatedId}
+                      className="animate-in fade-in slide-in-from-bottom-4 duration-300"
+                    >
+                      <FieldRenderer
+                        field={{ ...field, id: repeatedId, label: `${field.label} #${i + 1}` }}
+                        value={answers[repeatedId]}
+                        onChange={(v) => handleChange(repeatedId, v)}
+                        allAnswers={answers}
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          }
+
+          // Standard single field
           return (
             <div key={field.id} className="animate-in fade-in slide-in-from-bottom-4 duration-300">
               <FieldRenderer

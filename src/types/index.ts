@@ -19,6 +19,7 @@ export interface FormField {
   logicDependsOn?: string // ID of another field
   logicValue?: string // Expected value to show this field
   calculation?: string // Math formula string
+  repeatsBasedOn?: string // ID of a numeric field to repeat this component
 }
 
 export interface Template {
