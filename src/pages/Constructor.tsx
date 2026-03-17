@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { v4 as uuidv4 } from 'uuid'
+import { generateId } from '@/lib/utils'
 import useAppStore from '@/stores/useAppStore'
 import { FormField, FieldType, Template } from '@/types'
 import { Button } from '@/components/ui/button'
@@ -19,7 +19,7 @@ export default function Constructor() {
 
   const handleAddField = (type: FieldType) => {
     const newField: FormField = {
-      id: `field_${uuidv4().substring(0, 6)}`,
+      id: `field_${generateId().substring(0, 6)}`,
       type,
       label: `Novo Campo (${type})`,
       required: false,
@@ -47,7 +47,7 @@ export default function Constructor() {
       return
     }
     const newTemplate: Template = {
-      id: `tmpl_${uuidv4()}`,
+      id: `tmpl_${generateId()}`,
       name: templateName,
       description: 'Template gerado pelo construtor.',
       createdAt: new Date().toISOString(),

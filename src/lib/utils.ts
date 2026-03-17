@@ -11,4 +11,9 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-// Add any other utility functions here
+/**
+ * Generates a random alphanumeric ID
+ */
+export function generateId(): string {
+  return Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10)
+}

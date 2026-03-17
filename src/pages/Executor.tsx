@@ -5,7 +5,7 @@ import { FieldRenderer } from '@/components/executor/FieldRenderer'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { toast } from '@/hooks/use-toast'
-import { v4 as uuidv4 } from 'uuid'
+import { generateId } from '@/lib/utils'
 import { Save, Send } from 'lucide-react'
 
 export default function Executor() {
@@ -54,7 +54,7 @@ export default function Executor() {
     }
 
     submitAudit({
-      id: `aud_${uuidv4().substring(0, 8)}`,
+      id: `aud_${generateId().substring(0, 8)}`,
       templateId: template.id,
       templateName: template.name,
       operatorName: 'Operador Logístico 1',
