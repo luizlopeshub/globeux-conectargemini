@@ -14,6 +14,8 @@ import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
+  SelectGroup,
+  SelectLabel,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -23,11 +25,11 @@ import { format } from 'date-fns'
 import { FileText, FilterX, Download } from 'lucide-react'
 
 export default function Reports() {
-  const { audits, templates, clients, products, carriers } = useAppStore()
+  const { audits, templates, entityDefs, entityRecords } = useAppStore()
   const [selectedTemplate, setSelectedTemplate] = useState('all')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
-  const [selectedClient, setSelectedClient] = useState('all')
+  const [selectedRef, setSelectedRef] = useState('all')
   const [searchDoc, setSearchDoc] = useState('')
   const [status, setStatus] = useState('all')
   const [selectedAudit, setSelectedAudit] = useState<any>(null)
@@ -37,24 +39,24 @@ export default function Reports() {
       if (selectedTemplate !== 'all' && a.templateId !== selectedTemplate) return false
       if (status !== 'all' && a.status !== status && a.approvalStatus !== status) return false
       if (searchDoc && !a.id.toLowerCase().includes(searchDoc.toLowerCase())) return false
-      if (selectedClient !== 'all') {
-        const hasClient = Object.values(a.answers).includes(selectedClient)
-        if (!hasClient) return false
+      if (selectedRef !== 'all') {
+        const hasRef = Object.values(a.answers).includes(selectedRef)
+        if (!hasRef) return false
       }
       if (dateFrom && new Date(a.timestamp) < new Date(dateFrom)) return false
       if (dateTo && new Date(a.timestamp) > new Date(new Date(dateTo).getTime() + 86400000))
         return false
       return true
     })
-  }, [audits, selectedTemplate, status, searchDoc, selectedClient, dateFrom, dateTo])
+  }, [audits, selectedTemplate, status, searchDoc, selectedRef, dateFrom, dateTo])
 
   const resolveValue = (val: any) => {
-    if (typeof val === 'string') {
-      const e =
-        clients.find((c) => c.id === val) ||
-        products.find((p) => p.id === val) ||
-        carriers.find((c) => c.id === val)
-      if (e) return e.name
+    if (typeof val === 'string' && val.length > 0) {
+      const record = entityRecords.find((r) => r.id === val)
+      if (record) {
+        const def = entityDefs.find((d) => d.id === record.entityId)
+        return record[def?.fields[0]?.id || 'id'] || record.id
+      }
     }
     return String(val)
   }
@@ -63,7 +65,7 @@ export default function Reports() {
     setSelectedTemplate('all')
     setDateFrom('')
     setDateTo('')
-    setSelectedClient('all')
+    setSelectedRef('all')
     setSearchDoc('')
     setStatus('all')
   }
@@ -114,18 +116,27 @@ export default function Reports() {
           </Select>
         </div>
         <div className="space-y-2">
-          <Label>Cliente (Referência)</Label>
-          <Select value={selectedClient} onValueChange={setSelectedClient}>
+          <Label>Referência de Cadastro</Label>
+          <Select value={selectedRef} onValueChange={setSelectedRef}>
             <SelectTrigger>
-              <SelectValue placeholder="Cliente" />
+              <SelectValue placeholder="Qualquer" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos</SelectItem>
-              {clients.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
-                </SelectItem>
-              ))}
+              {entityDefs.map((def) => {
+                const recs = entityRecords.filter((r) => r.entityId === def.id)
+                if (recs.length === 0) return null
+                return (
+                  <SelectGroup key={def.id}>
+                    <SelectLabel>{def.name}</SelectLabel>
+                    {recs.map((r) => (
+                      <SelectItem key={r.id} value={r.id}>
+                        {r[def.fields[0]?.id || 'id']}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                )
+              })}
             </SelectContent>
           </Select>
         </div>
@@ -157,7 +168,7 @@ export default function Reports() {
               <TableHead>Documento / REF</TableHead>
               <TableHead>Data</TableHead>
               <TableHead>Checklist</TableHead>
-              <TableHead>Principais Registros (Cliente/Transp.)</TableHead>
+              <TableHead>Principais Registros Mestre</TableHead>
               <TableHead className="text-right">Ação</TableHead>
             </TableRow>
           </TableHeader>
@@ -166,11 +177,11 @@ export default function Reports() {
               const refs = Object.values(a.answers).filter(
                 (v) =>
                   typeof v === 'string' &&
-                  (v.startsWith('c') || v.startsWith('t') || v.startsWith('p')) &&
-                  !v.includes('http'),
+                  !v.includes('http') &&
+                  entityRecords.some((r) => r.id === v),
               )
               const resolvedRefs = refs
-                .map((r) => resolveValue(r))
+                .map(resolveValue)
                 .filter((r) => r !== String(refs[0]))
                 .slice(0, 2)
                 .join(' / ')
@@ -198,7 +209,6 @@ export default function Reports() {
           </TableBody>
         </Table>
       </div>
-
       <AuditReportDialog
         audit={selectedAudit}
         onClose={() => setSelectedAudit(null)}

@@ -60,12 +60,10 @@ export function FieldRenderer({ field, value, onChange, allAnswers, error }: Pro
           />
         )
       case 'lookup': {
-        const items =
-          field.lookupSource === 'products'
-            ? store.products
-            : field.lookupSource === 'carriers'
-              ? store.carriers
-              : store.clients
+        const entityDef = store.entityDefs.find((d) => d.id === field.lookupSource)
+        const items = store.entityRecords.filter((r) => r.entityId === field.lookupSource)
+        const primaryFieldId = entityDef?.fields[0]?.id || 'id'
+
         return (
           <Popover>
             <PopoverTrigger asChild>
@@ -73,7 +71,9 @@ export function FieldRenderer({ field, value, onChange, allAnswers, error }: Pro
                 variant="outline"
                 className={`w-full justify-between h-12 bg-white font-normal ${error ? 'border-destructive' : ''}`}
               >
-                {value ? items.find((i: any) => i.id === value)?.name : 'Selecione o cadastro...'}
+                {value
+                  ? items.find((i: any) => i.id === value)?.[primaryFieldId]
+                  : 'Selecione o registro...'}
                 <ChevronsUpDown className="h-4 w-4 opacity-50" />
               </Button>
             </PopoverTrigger>
@@ -88,7 +88,7 @@ export function FieldRenderer({ field, value, onChange, allAnswers, error }: Pro
                         <Check
                           className={`mr-2 h-4 w-4 ${value === item.id ? 'opacity-100' : 'opacity-0'}`}
                         />
-                        {item.name}
+                        {item[primaryFieldId]}
                       </CommandItem>
                     ))}
                   </CommandGroup>

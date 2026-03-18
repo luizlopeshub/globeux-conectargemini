@@ -4,11 +4,12 @@ import {
   PenTool,
   ClipboardList,
   Database,
-  Users,
+  Users as UsersIcon,
   ChevronDown,
   Briefcase,
   ChevronRight,
   LineChart,
+  Settings,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -38,7 +39,7 @@ import useAppStore from '@/stores/useAppStore'
 import { cn } from '@/lib/utils'
 
 export default function Layout() {
-  const { currentUser, users, setCurrentUser } = useAppStore()
+  const { currentUser, users, setCurrentUser, entityDefs } = useAppStore()
   const location = useLocation()
 
   if (!currentUser) return null
@@ -90,34 +91,33 @@ export default function Layout() {
                           <SidebarMenuSubItem>
                             <SidebarMenuSubButton
                               asChild
-                              isActive={location.pathname === '/master-data/clients'}
+                              isActive={location.pathname === '/master-data/config'}
                             >
-                              <Link to="/master-data/clients">Clientes</Link>
+                              <Link
+                                to="/master-data/config"
+                                className="text-primary font-medium flex items-center gap-2"
+                              >
+                                <Settings className="h-3.5 w-3.5" /> Configurar Entidades
+                              </Link>
                             </SidebarMenuSubButton>
                           </SidebarMenuSubItem>
-                          <SidebarMenuSubItem>
-                            <SidebarMenuSubButton
-                              asChild
-                              isActive={location.pathname === '/master-data/products'}
-                            >
-                              <Link to="/master-data/products">Produtos</Link>
-                            </SidebarMenuSubButton>
-                          </SidebarMenuSubItem>
-                          <SidebarMenuSubItem>
-                            <SidebarMenuSubButton
-                              asChild
-                              isActive={location.pathname === '/master-data/carriers'}
-                            >
-                              <Link to="/master-data/carriers">Transportadoras</Link>
-                            </SidebarMenuSubButton>
-                          </SidebarMenuSubItem>
+                          {entityDefs.map((def) => (
+                            <SidebarMenuSubItem key={def.id}>
+                              <SidebarMenuSubButton
+                                asChild
+                                isActive={location.pathname === `/master-data/${def.slug}`}
+                              >
+                                <Link to={`/master-data/${def.slug}`}>{def.name}</Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          ))}
                         </SidebarMenuSub>
                       </CollapsibleContent>
                     </SidebarMenuItem>
                   </Collapsible>
                   {renderMenuItem('Relatórios e Consultas', <LineChart />, '/reports')}
                   {renderMenuItem('Logs e Aprovações', <Database />, '/logs')}
-                  {renderMenuItem('Usuários', <Users />, '/users')}
+                  {renderMenuItem('Usuários', <UsersIcon />, '/users')}
                 </>
               ) : currentUser.role === 'supervisor' ? (
                 <>

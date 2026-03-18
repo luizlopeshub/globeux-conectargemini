@@ -9,28 +9,26 @@ export interface User {
   avatar: string
 }
 
-export interface Client {
+export type EntityFieldType = 'text' | 'number' | 'date'
+
+export interface EntityFieldDef {
   id: string
   name: string
-  cnpj: string
-  address: string
+  type: EntityFieldType
 }
 
-export interface Product {
+export interface EntityDef {
   id: string
   name: string
-  sku: string
-  category: string
+  slug: string
+  fields: EntityFieldDef[]
 }
 
-export interface Carrier {
+export interface EntityRecord {
   id: string
-  name: string
-  fleetType: string
-  contact: string
+  entityId: string
+  [key: string]: any
 }
-
-export type LookupSource = 'clients' | 'products' | 'carriers'
 
 export type FieldType =
   | 'text'
@@ -52,16 +50,13 @@ export interface FormField {
   logicDependsOn?: string
   logicValue?: string
   repeatsBasedOn?: string
-  // Calculation
   calcOperation?: 'sum' | 'average'
   calcSourceFields?: string[]
-  // Hard Validation
   hardValidation?: boolean
   hardValidationMin?: number
   hardValidationMax?: number
   hardValidationMessage?: string
-  // Lookup
-  lookupSource?: LookupSource
+  lookupSource?: string // Now points to Custom Entity ID
 }
 
 export interface Template {

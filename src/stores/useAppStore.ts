@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Role, Template, Audit, User, Client, Product, Carrier } from '@/types'
+import { Role, Template, Audit, User, EntityDef, EntityRecord } from '@/types'
 
 interface AppState {
   users: User[]
@@ -7,9 +7,8 @@ interface AppState {
   templates: Template[]
   audits: Audit[]
   drafts: Record<string, Record<string, any>>
-  clients: Client[]
-  products: Product[]
-  carriers: Carrier[]
+  entityDefs: EntityDef[]
+  entityRecords: EntityRecord[]
 }
 
 const mockUsers: User[] = [
@@ -36,58 +35,78 @@ const mockUsers: User[] = [
     department: 'Recebimento',
     avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=3',
   },
+]
+
+const mockEntityDefs: EntityDef[] = [
   {
-    id: 'u4',
-    name: 'Carlos (Químicos)',
-    email: 'carlos@logiaudit.com',
-    role: 'operator',
-    department: 'Químicos',
-    avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=4',
+    id: 'clients',
+    name: 'Clientes',
+    slug: 'clientes',
+    fields: [
+      { id: 'name', name: 'Nome do Cliente', type: 'text' },
+      { id: 'cnpj', name: 'CNPJ / Documento', type: 'text' },
+      { id: 'address', name: 'Endereço Completo', type: 'text' },
+    ],
+  },
+  {
+    id: 'products',
+    name: 'Produtos',
+    slug: 'produtos',
+    fields: [
+      { id: 'name', name: 'Nome do Produto', type: 'text' },
+      { id: 'sku', name: 'SKU / Código', type: 'text' },
+      { id: 'category', name: 'Categoria', type: 'text' },
+    ],
+  },
+  {
+    id: 'carriers',
+    name: 'Transportadoras',
+    slug: 'transportadoras',
+    fields: [
+      { id: 'name', name: 'Razão Social', type: 'text' },
+      { id: 'fleetType', name: 'Tipo de Frota', type: 'text' },
+      { id: 'contact', name: 'Contato', type: 'text' },
+    ],
   },
 ]
 
-const mockClients: Client[] = [
-  { id: 'c1', name: 'Logística Alfa', cnpj: '12.345.678/0001-90', address: 'Av. Paulista, 1000' },
-  { id: 'c2', name: 'Transportes Beta', cnpj: '98.765.432/0001-10', address: 'Rua Augusta, 500' },
-]
-
-const mockProducts: Product[] = [
-  { id: 'p1', name: 'Caixa de Papelão 50x50', sku: 'CX-50', category: 'Embalagens' },
-  { id: 'p2', name: 'Fita Adesiva 45mm', sku: 'FT-45', category: 'Insumos' },
-]
-
-const mockCarriers: Carrier[] = [
-  { id: 't1', name: 'Expresso Rápido', fleetType: 'Caminhão Baú', contact: 'contato@expresso.com' },
+const mockEntityRecords: EntityRecord[] = [
+  {
+    id: 'c1',
+    entityId: 'clients',
+    name: 'Logística Alfa',
+    cnpj: '12.345.678/0001-90',
+    address: 'Av. Paulista, 1000',
+  },
+  {
+    id: 'c2',
+    entityId: 'clients',
+    name: 'Transportes Beta',
+    cnpj: '98.765.432/0001-10',
+    address: 'Rua Augusta, 500',
+  },
+  {
+    id: 'p1',
+    entityId: 'products',
+    name: 'Caixa de Papelão 50x50',
+    sku: 'CX-50',
+    category: 'Embalagens',
+  },
+  {
+    id: 't1',
+    entityId: 'carriers',
+    name: 'Expresso Rápido',
+    fleetType: 'Caminhão Baú',
+    contact: 'contato@expresso.com',
+  },
 ]
 
 const mockTemplates: Template[] = [
   {
     id: 't1',
-    name: 'Inspeção Diária de Empilhadeira',
-    description: 'Checklist obrigatório antes do início do turno.',
-    createdAt: '2023-10-01T08:00:00Z',
-    assignedDepartments: ['Recebimento', 'Expedição'],
-    fields: [
-      { id: 'f1', type: 'text', label: 'ID do Veículo', required: true },
-      {
-        id: 'f4',
-        type: 'number',
-        label: 'Nível de Combustível (%)',
-        required: true,
-        hardValidation: true,
-        hardValidationMin: 20,
-        hardValidationMax: 100,
-        hardValidationMessage: 'Combustível muito baixo para operar.',
-      },
-      { id: 'f5', type: 'signature', label: 'Assinatura do Operador', required: true },
-    ],
-  },
-  {
-    id: 't2',
     name: 'Expedição de Carga',
     description: 'Verificação de transportadora e cliente.',
     createdAt: '2023-10-02T10:30:00Z',
-    assignedUsers: ['u3'],
     fields: [
       {
         id: 'f1',
@@ -111,7 +130,7 @@ const mockAudits: Audit[] = [
   {
     id: 'a1',
     templateId: 't1',
-    templateName: 'Inspeção Diária de Empilhadeira',
+    templateName: 'Expedição de Carga',
     operatorId: 'u3',
     operatorName: 'João (Recebimento)',
     operatorAvatar: mockUsers[2].avatar,
@@ -119,7 +138,7 @@ const mockAudits: Audit[] = [
     location: '-23.5505, -46.6333',
     status: 'Concluído',
     approvalStatus: 'Pendente',
-    answers: { f1: 'EMP-04', f4: '80', f5: 'signed' },
+    answers: { f1: 'c1', f2: 't1' },
   },
 ]
 
@@ -129,9 +148,8 @@ let globalState: AppState = {
   templates: mockTemplates,
   audits: mockAudits,
   drafts: {},
-  clients: mockClients,
-  products: mockProducts,
-  carriers: mockCarriers,
+  entityDefs: mockEntityDefs,
+  entityRecords: mockEntityRecords,
 }
 
 let listeners: Array<(state: AppState) => void> = []
@@ -154,7 +172,6 @@ export default function useAppStore() {
   return {
     ...state,
     setCurrentUser: (user: User) => update({ currentUser: user }),
-    setUsers: (users: User[]) => update({ users }),
     addTemplate: (t: Template) => update({ templates: [...globalState.templates, t] }),
     updateTemplate: (t: Template) =>
       update({ templates: globalState.templates.map((x) => (x.id === t.id ? t : x)) }),
@@ -172,11 +189,28 @@ export default function useAppStore() {
         ),
       })
     },
-    addEntity: (type: 'clients' | 'products' | 'carriers', item: any) =>
-      update({ [type]: [...globalState[type], item] }),
-    updateEntity: (type: 'clients' | 'products' | 'carriers', item: any) =>
-      update({ [type]: (globalState[type] as any[]).map((i) => (i.id === item.id ? item : i)) }),
-    deleteEntity: (type: 'clients' | 'products' | 'carriers', id: string) =>
-      update({ [type]: (globalState[type] as any[]).filter((i) => i.id !== id) }),
+    saveEntityDef: (def: EntityDef) => {
+      const exists = globalState.entityDefs.find((d) => d.id === def.id)
+      update({
+        entityDefs: exists
+          ? globalState.entityDefs.map((d) => (d.id === def.id ? def : d))
+          : [...globalState.entityDefs, def],
+      })
+    },
+    deleteEntityDef: (id: string) =>
+      update({
+        entityDefs: globalState.entityDefs.filter((d) => d.id !== id),
+        entityRecords: globalState.entityRecords.filter((r) => r.entityId !== id),
+      }),
+    saveEntityRecord: (rec: EntityRecord) => {
+      const exists = globalState.entityRecords.find((r) => r.id === rec.id)
+      update({
+        entityRecords: exists
+          ? globalState.entityRecords.map((r) => (r.id === rec.id ? rec : r))
+          : [...globalState.entityRecords, rec],
+      })
+    },
+    deleteEntityRecord: (id: string) =>
+      update({ entityRecords: globalState.entityRecords.filter((r) => r.id !== id) }),
   }
 }

@@ -14,18 +14,18 @@ interface Props {
 }
 
 export function AuditReportDialog({ audit, onClose, showApproval, onApprove }: Props) {
-  const { clients, products, carriers, currentUser } = useAppStore()
+  const { entityDefs, entityRecords, currentUser } = useAppStore()
   if (!audit) return null
 
   const isSupervisorOrAdmin = currentUser?.role === 'admin' || currentUser?.role === 'supervisor'
 
   const resolveName = (val: any) => {
-    if (typeof val === 'string') {
-      const entity =
-        clients.find((c) => c.id === val) ||
-        products.find((p) => p.id === val) ||
-        carriers.find((c) => c.id === val)
-      if (entity) return entity.name
+    if (typeof val === 'string' && val.length > 0) {
+      const record = entityRecords.find((r) => r.id === val)
+      if (record) {
+        const def = entityDefs.find((d) => d.id === record.entityId)
+        return record[def?.fields[0]?.id || 'id'] || record.id
+      }
     }
     return String(val)
   }
@@ -157,13 +157,13 @@ export function AuditReportDialog({ audit, onClose, showApproval, onApprove }: P
                   className="text-destructive hover:bg-destructive/10"
                   onClick={() => onApprove(audit.id, 'Rejeitado')}
                 >
-                  <XCircle className="h-4 w-4 mr-2" /> Rejeitar Auditoria
+                  <XCircle className="h-4 w-4 mr-2" /> Rejeitar
                 </Button>
                 <Button
                   className="bg-emerald-600 hover:bg-emerald-700"
                   onClick={() => onApprove(audit.id, 'Aprovado')}
                 >
-                  <CheckCircle className="h-4 w-4 mr-2" /> Aprovar Relatório
+                  <CheckCircle className="h-4 w-4 mr-2" /> Aprovar
                 </Button>
               </div>
             )}

@@ -11,9 +11,8 @@ const Executor = lazy(() => import('./pages/Executor'))
 const AuditLogs = lazy(() => import('./pages/AuditLogs'))
 const Users = lazy(() => import('./pages/Users'))
 const Reports = lazy(() => import('./pages/Reports'))
-const Clients = lazy(() => import('./pages/master-data/Clients'))
-const Products = lazy(() => import('./pages/master-data/Products'))
-const Carriers = lazy(() => import('./pages/master-data/Carriers'))
+const EntityConfig = lazy(() => import('./pages/master-data/EntityConfig'))
+const DynamicEntityCrud = lazy(() => import('./pages/master-data/DynamicEntityCrud'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 
 const PageLoader = () => (
@@ -36,9 +35,8 @@ const App = () => (
             <Route path="/logs" element={<AuditLogs />} />
             <Route path="/users" element={<Users />} />
             <Route path="/reports" element={<Reports />} />
-            <Route path="/master-data/clients" element={<Clients />} />
-            <Route path="/master-data/products" element={<Products />} />
-            <Route path="/master-data/carriers" element={<Carriers />} />
+            <Route path="/master-data/config" element={<EntityConfig />} />
+            <Route path="/master-data/:slug" element={<DynamicEntityCrud />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

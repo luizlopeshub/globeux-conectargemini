@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
+import useAppStore from '@/stores/useAppStore'
 
 interface Props {
   activeField: FormField
@@ -18,6 +19,7 @@ interface Props {
 }
 
 export function PropertiesPanel({ activeField, fields, handleUpdateField }: Props) {
+  const { entityDefs } = useAppStore()
   const numericFields = fields.filter((f) => f.id !== activeField.id && f.type === 'number')
 
   return (
@@ -52,9 +54,9 @@ export function PropertiesPanel({ activeField, fields, handleUpdateField }: Prop
         {activeField.type === 'lookup' && (
           <div className="pt-4 border-t space-y-4">
             <div className="space-y-2">
-              <Label>Tabela Fonte de Dados</Label>
+              <Label>Entidade de Cadastro Fonte</Label>
               <Select
-                value={activeField.lookupSource || 'clients'}
+                value={activeField.lookupSource || ''}
                 onValueChange={(val: any) =>
                   handleUpdateField(activeField.id, { lookupSource: val })
                 }
@@ -63,9 +65,11 @@ export function PropertiesPanel({ activeField, fields, handleUpdateField }: Prop
                   <SelectValue placeholder="Selecione..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="clients">Clientes</SelectItem>
-                  <SelectItem value="products">Produtos</SelectItem>
-                  <SelectItem value="carriers">Transportadoras</SelectItem>
+                  {entityDefs.map((def) => (
+                    <SelectItem key={def.id} value={def.id}>
+                      {def.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
