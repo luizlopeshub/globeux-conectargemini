@@ -13,25 +13,23 @@ interface Props {
   value: any
   onChange: (val: any) => void
   allAnswers: Record<string, any>
+  error?: string
 }
 
-export function FieldRenderer({ field, value, onChange, allAnswers }: Props) {
+export function FieldRenderer({ field, value, onChange, allAnswers, error }: Props) {
   const options = field.options ? field.options.split(',').map((s) => s.trim()) : []
 
   const calcValue = useMemo(() => {
-    if (field.type !== 'calculation' || !field.calculation) return 0
-    try {
-      let formula = field.calculation
-      Object.keys(allAnswers).forEach((key) => {
-        const val = Number(allAnswers[key]) || 0
-        formula = formula.replace(new RegExp(`{{${key}}}`, 'g'), val.toString())
-      })
-      // eslint-disable-next-line no-eval
-      return eval(formula)
-    } catch {
-      return 'Erro na fórmula'
-    }
-  }, [field.type, field.calculation, allAnswers])
+    if (field.type !== 'calculation') return 0
+    const sources = field.calcSourceFields || []
+    if (sources.length === 0) return 0
+
+    const vals = sources.map((id) => Number(allAnswers[id]) || 0)
+    const sum = vals.reduce((acc, curr) => acc + curr, 0)
+
+    if (field.calcOperation === 'average') return vals.length ? (sum / vals.length).toFixed(2) : 0
+    return sum
+  }, [field.type, field.calcOperation, field.calcSourceFields, allAnswers])
 
   const renderInput = () => {
     switch (field.type) {
@@ -40,7 +38,7 @@ export function FieldRenderer({ field, value, onChange, allAnswers }: Props) {
           <Input
             value={value || ''}
             onChange={(e) => onChange(e.target.value)}
-            className="h-12 bg-white"
+            className={`h-12 bg-white ${error ? 'border-destructive' : ''}`}
           />
         )
       case 'number':
@@ -49,7 +47,7 @@ export function FieldRenderer({ field, value, onChange, allAnswers }: Props) {
             type="number"
             value={value || ''}
             onChange={(e) => onChange(e.target.value)}
-            className="h-12 bg-white"
+            className={`h-12 bg-white ${error ? 'border-destructive' : ''}`}
           />
         )
       case 'radio':
@@ -58,7 +56,7 @@ export function FieldRenderer({ field, value, onChange, allAnswers }: Props) {
             {options.map((opt) => (
               <div
                 key={opt}
-                className="flex items-center space-x-3 bg-white p-3 rounded-md border border-input has-[:checked]:border-primary has-[:checked]:bg-primary/5 transition-colors cursor-pointer"
+                className="flex items-center space-x-3 bg-white p-3 rounded-md border border-input has-[:checked]:border-primary has-[:checked]:bg-primary/5 cursor-pointer"
               >
                 <RadioGroupItem value={opt} id={`${field.id}-${opt}`} />
                 <Label htmlFor={`${field.id}-${opt}`} className="flex-1 cursor-pointer">
@@ -71,27 +69,24 @@ export function FieldRenderer({ field, value, onChange, allAnswers }: Props) {
       case 'checkbox':
         return (
           <div className="flex flex-col gap-3">
-            {options.map((opt) => {
-              const isChecked = Array.isArray(value) && value.includes(opt)
-              return (
-                <div
-                  key={opt}
-                  className="flex items-center space-x-3 bg-white p-3 rounded-md border border-input has-[:checked]:border-primary has-[:checked]:bg-primary/5 cursor-pointer"
-                >
-                  <Checkbox
-                    id={`${field.id}-${opt}`}
-                    checked={isChecked}
-                    onCheckedChange={(c) => {
-                      const current = Array.isArray(value) ? value : []
-                      onChange(c ? [...current, opt] : current.filter((v) => v !== opt))
-                    }}
-                  />
-                  <Label htmlFor={`${field.id}-${opt}`} className="flex-1 cursor-pointer">
-                    {opt}
-                  </Label>
-                </div>
-              )
-            })}
+            {options.map((opt) => (
+              <div
+                key={opt}
+                className="flex items-center space-x-3 bg-white p-3 rounded-md border border-input has-[:checked]:border-primary has-[:checked]:bg-primary/5 cursor-pointer"
+              >
+                <Checkbox
+                  id={`${field.id}-${opt}`}
+                  checked={Array.isArray(value) && value.includes(opt)}
+                  onCheckedChange={(c) => {
+                    const current = Array.isArray(value) ? value : []
+                    onChange(c ? [...current, opt] : current.filter((v) => v !== opt))
+                  }}
+                />
+                <Label htmlFor={`${field.id}-${opt}`} className="flex-1 cursor-pointer">
+                  {opt}
+                </Label>
+              </div>
+            ))}
           </div>
         )
       case 'gps':
@@ -127,7 +122,7 @@ export function FieldRenderer({ field, value, onChange, allAnswers }: Props) {
             className="h-12 w-full gap-2 bg-white"
             onClick={() => onChange('https://img.usecurling.com/p/400/300?q=warehouse')}
           >
-            <Camera className="h-4 w-4 text-blue-500" /> Tirar Foto da Avaria
+            <Camera className="h-4 w-4 text-blue-500" /> Tirar Foto
           </Button>
         )
       case 'signature':
@@ -162,12 +157,15 @@ export function FieldRenderer({ field, value, onChange, allAnswers }: Props) {
   }
 
   return (
-    <Card className="border-muted shadow-sm">
+    <Card
+      className={`border-muted shadow-sm ${error ? 'border-destructive/50 ring-1 ring-destructive/50' : ''}`}
+    >
       <CardContent className="p-5">
         <Label className="text-base font-medium mb-4 block">
           {field.label} {field.required && <span className="text-destructive">*</span>}
         </Label>
         {renderInput()}
+        {error && <p className="text-sm font-medium text-destructive mt-3">{error}</p>}
       </CardContent>
     </Card>
   )

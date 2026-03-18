@@ -15,12 +15,29 @@ import useAppStore from '@/stores/useAppStore'
 import { useState } from 'react'
 
 export function OperatorDashboard() {
-  const { templates, drafts } = useAppStore()
+  const { templates, drafts, currentUser } = useAppStore()
   const [search, setSearch] = useState('')
 
-  const filteredTemplates = templates.filter((t) =>
-    t.name.toLowerCase().includes(search.toLowerCase()),
-  )
+  const filteredTemplates = templates.filter((t) => {
+    // 1. Text Search filter
+    if (!t.name.toLowerCase().includes(search.toLowerCase())) return false
+
+    // 2. Attribution Filter logic
+    const noUsers = !t.assignedUsers || t.assignedUsers.length === 0
+    const noDepts = !t.assignedDepartments || t.assignedDepartments.length === 0
+
+    // If it has NO assignments at all, it's public
+    if (noUsers && noDepts) return true
+
+    // If assigned to this specific user
+    if (t.assignedUsers?.includes(currentUser?.id || '')) return true
+
+    // If assigned to this user's department
+    if (currentUser?.department && t.assignedDepartments?.includes(currentUser.department))
+      return true
+
+    return false
+  })
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -37,7 +54,6 @@ export function OperatorDashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {filteredTemplates.map((template) => {
           const hasDraft = !!drafts[template.id]
-
           return (
             <Card
               key={template.id}
@@ -75,7 +91,7 @@ export function OperatorDashboard() {
         })}
         {filteredTemplates.length === 0 && (
           <div className="col-span-full py-12 text-center text-muted-foreground">
-            Nenhum checklist encontrado.
+            Nenhum checklist atribuído a você no momento.
           </div>
         )}
       </div>

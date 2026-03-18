@@ -1,4 +1,13 @@
-export type Role = 'admin' | 'operator'
+export type Role = 'admin' | 'supervisor' | 'operator'
+
+export interface User {
+  id: string
+  name: string
+  email: string
+  role: Role
+  department?: string
+  avatar: string
+}
 
 export type FieldType =
   | 'text'
@@ -14,12 +23,19 @@ export interface FormField {
   id: string
   type: FieldType
   label: string
-  options?: string // Comma separated for radio/checkbox
+  options?: string
   required?: boolean
-  logicDependsOn?: string // ID of another field
-  logicValue?: string // Expected value to show this field
-  calculation?: string // Math formula string
-  repeatsBasedOn?: string // ID of a numeric field to repeat this component
+  logicDependsOn?: string
+  logicValue?: string
+  repeatsBasedOn?: string
+  // Calculation
+  calcOperation?: 'sum' | 'average'
+  calcSourceFields?: string[]
+  // Hard Validation
+  hardValidation?: boolean
+  hardValidationMin?: number
+  hardValidationMax?: number
+  hardValidationMessage?: string
 }
 
 export interface Template {
@@ -28,15 +44,21 @@ export interface Template {
   description: string
   fields: FormField[]
   createdAt: string
+  assignedUsers?: string[]
+  assignedDepartments?: string[]
 }
 
 export interface Audit {
   id: string
   templateId: string
   templateName: string
+  operatorId: string
   operatorName: string
+  operatorAvatar?: string
   answers: Record<string, any>
   timestamp: string
   location?: string
   status: 'Concluído' | 'Rascunho'
+  approvalStatus?: 'Pendente' | 'Aprovado' | 'Rejeitado'
+  approverName?: string
 }

@@ -9,6 +9,7 @@ const Index = lazy(() => import('./pages/Index'))
 const Constructor = lazy(() => import('./pages/Constructor'))
 const Executor = lazy(() => import('./pages/Executor'))
 const AuditLogs = lazy(() => import('./pages/AuditLogs'))
+const Users = lazy(() => import('./pages/Users'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 
 const PageLoader = () => (
@@ -29,6 +30,7 @@ const App = () => (
             <Route path="/builder" element={<Constructor />} />
             <Route path="/execute/:id" element={<Executor />} />
             <Route path="/logs" element={<AuditLogs />} />
+            <Route path="/users" element={<Users />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

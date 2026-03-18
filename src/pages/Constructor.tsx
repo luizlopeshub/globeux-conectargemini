@@ -4,28 +4,32 @@ import useAppStore from '@/stores/useAppStore'
 import { FormField, FieldType, Template } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
-import { Switch } from '@/components/ui/switch'
 import { toast } from '@/hooks/use-toast'
 import { Toolbox } from '@/components/constructor/Toolbox'
+import { PropertiesPanel } from '@/components/constructor/PropertiesPanel'
+import { ConfigPanel } from '@/components/constructor/ConfigPanel'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { Save, GripVertical, Trash2, Plus, CornerDownRight, FileText } from 'lucide-react'
+import { Save, GripVertical, Trash2, Plus, FileText, ShieldAlert } from 'lucide-react'
 
 export default function Constructor() {
-  const { templates, addTemplate, updateTemplate } = useAppStore()
+  const { templates, addTemplate, updateTemplate, currentUser } = useAppStore()
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null)
   const [templateName, setTemplateName] = useState('Novo Checklist')
   const [fields, setFields] = useState<FormField[]>([])
+  const [assignedUsers, setAssignedUsers] = useState<string[]>([])
+  const [assignedDepartments, setAssignedDepartments] = useState<string[]>([])
   const [activeFieldId, setActiveFieldId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState('toolbox')
+
+  if (currentUser?.role !== 'admin') {
+    return (
+      <div className="p-8 text-center text-muted-foreground flex flex-col items-center gap-4">
+        <ShieldAlert className="h-12 w-12 text-destructive" />
+        <p>Acesso negado. Apenas administradores podem acessar o Construtor.</p>
+      </div>
+    )
+  }
 
   useEffect(() => {
     if (
@@ -42,6 +46,8 @@ export default function Constructor() {
     setEditingTemplateId(t.id)
     setTemplateName(t.name)
     setFields(t.fields)
+    setAssignedUsers(t.assignedUsers || [])
+    setAssignedDepartments(t.assignedDepartments || [])
     setActiveFieldId(null)
     setActiveTab('toolbox')
   }
@@ -50,13 +56,15 @@ export default function Constructor() {
     setEditingTemplateId(null)
     setTemplateName('Novo Checklist')
     setFields([])
+    setAssignedUsers([])
+    setAssignedDepartments([])
     setActiveFieldId(null)
     setActiveTab('toolbox')
   }
 
   const handleAddField = (type: FieldType) => {
     const newField: FormField = {
-      id: `field_${generateId().substring(0, 6)}`,
+      id: `f_${generateId().substring(0, 6)}`,
       type,
       label: `Novo Campo (${type})`,
       required: false,
@@ -66,68 +74,29 @@ export default function Constructor() {
     setActiveTab('properties')
   }
 
-  const handleUpdateField = (id: string, updates: Partial<FormField>) => {
-    setFields(fields.map((f) => (f.id === id ? { ...f, ...updates } : f)))
-  }
-
-  const handleRemoveField = (id: string) => {
-    setFields(fields.filter((f) => f.id !== id))
-    if (activeFieldId === id) {
-      setActiveFieldId(null)
-      setActiveTab('toolbox')
-    }
-  }
-
   const handleSave = () => {
-    if (!templateName || fields.length === 0) {
-      toast({
+    if (!templateName || fields.length === 0)
+      return toast({
         title: 'Erro',
         description: 'Adicione um nome e pelo menos um campo.',
         variant: 'destructive',
       })
-      return
-    }
-
+    const tmplData = { name: templateName, fields, assignedUsers, assignedDepartments }
     if (editingTemplateId) {
-      updateTemplate({
-        ...templates.find((t) => t.id === editingTemplateId)!,
-        name: templateName,
-        fields,
-      })
-      toast({ title: 'Sucesso', description: 'Template atualizado com sucesso!' })
+      updateTemplate({ ...templates.find((t) => t.id === editingTemplateId)!, ...tmplData })
+      toast({ title: 'Sucesso', description: 'Template atualizado!' })
     } else {
       const newTemplate: Template = {
         id: `tmpl_${generateId()}`,
-        name: templateName,
-        description: 'Template gerado pelo construtor.',
+        description: 'Gerado pelo construtor.',
         createdAt: new Date().toISOString(),
-        fields,
+        ...tmplData,
       }
       addTemplate(newTemplate)
       setEditingTemplateId(newTemplate.id)
-      toast({ title: 'Sucesso', description: 'Novo template salvo com sucesso!' })
+      toast({ title: 'Sucesso', description: 'Novo template salvo!' })
     }
   }
-
-  const getDepth = (fieldId: string) => {
-    let depth = 0
-    let currentId = fieldId
-    const visited = new Set<string>()
-
-    while (currentId) {
-      if (visited.has(currentId)) break
-      visited.add(currentId)
-
-      const current = fields.find((f) => f.id === currentId)
-      if (!current) break
-
-      currentId = current.logicDependsOn || current.repeatsBasedOn || ''
-      if (currentId) depth++
-    }
-    return depth
-  }
-
-  const activeField = fields.find((f) => f.id === activeFieldId)
 
   return (
     <div className="flex h-[calc(100vh-8rem)] gap-4 overflow-hidden">
@@ -142,15 +111,12 @@ export default function Constructor() {
           {templates.map((t) => (
             <Card
               key={t.id}
-              className={`p-3 cursor-pointer hover:border-primary transition-colors ${editingTemplateId === t.id ? 'border-primary bg-primary/5' : ''}`}
+              className={`p-3 cursor-pointer hover:border-primary ${editingTemplateId === t.id ? 'border-primary bg-primary/5' : ''}`}
               onClick={() => loadTemplate(t)}
             >
               <div className="font-medium text-sm truncate flex items-center gap-2">
                 <FileText className="h-4 w-4 text-primary shrink-0" />
                 <span className="truncate">{t.name}</span>
-              </div>
-              <div className="text-xs text-muted-foreground mt-1 ml-6">
-                {t.fields.length} campos
               </div>
             </Card>
           ))}
@@ -168,69 +134,45 @@ export default function Constructor() {
             <Save className="h-4 w-4" /> Salvar {editingTemplateId ? 'Alterações' : 'Template'}
           </Button>
         </div>
-
         <div className="flex-1 overflow-y-auto space-y-3 p-1">
-          {fields.length === 0 ? (
-            <div className="h-full flex items-center justify-center text-muted-foreground border-2 border-dashed rounded-lg">
-              Arraste ou clique nos componentes ao lado para começar
-            </div>
-          ) : (
-            fields.map((f) => {
-              const depth = getDepth(f.id)
-              return (
-                <div
-                  key={f.id}
-                  className="relative flex items-center transition-all"
-                  style={{ marginLeft: `${depth * 1.5}rem` }}
-                >
-                  {depth > 0 && (
-                    <CornerDownRight className="absolute -left-6 top-4 h-5 w-5 text-muted-foreground opacity-50" />
-                  )}
-                  <Card
-                    className={`flex-1 p-4 cursor-pointer transition-all ${activeFieldId === f.id ? 'ring-2 ring-primary border-transparent' : 'hover:border-primary/50'}`}
-                    onClick={() => {
-                      setActiveFieldId(f.id)
-                      setActiveTab('properties')
-                    }}
-                  >
-                    <div className="flex items-start gap-3">
-                      <GripVertical className="h-5 w-5 text-muted-foreground mt-1 cursor-move shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium flex items-center gap-2 truncate">
-                          <span className="truncate">{f.label}</span>
-                          {f.required && <span className="text-destructive shrink-0">*</span>}
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-1 uppercase tracking-wider">
-                          {f.type}
-                        </div>
-                        {f.logicDependsOn && (
-                          <div className="text-xs bg-blue-100 text-blue-800 p-1 mt-2 rounded inline-block truncate max-w-full">
-                            Lógica: Mostrar se {f.logicDependsOn} = {f.logicValue}
-                          </div>
-                        )}
-                        {f.repeatsBasedOn && (
-                          <div className="text-xs bg-purple-100 text-purple-800 p-1 mt-2 rounded inline-block truncate max-w-full mt-2 ml-2">
-                            Repetir X vezes (base: {f.repeatsBasedOn})
-                          </div>
-                        )}
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="shrink-0"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleRemoveField(f.id)
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </Card>
+          {fields.map((f) => (
+            <Card
+              key={f.id}
+              className={`p-4 cursor-pointer transition-all ${activeFieldId === f.id ? 'ring-2 ring-primary border-transparent' : 'hover:border-primary/50'}`}
+              onClick={() => {
+                setActiveFieldId(f.id)
+                setActiveTab('properties')
+              }}
+            >
+              <div className="flex items-start gap-3">
+                <GripVertical className="h-5 w-5 text-muted-foreground mt-1 cursor-move shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium flex items-center gap-2 truncate">
+                    <span className="truncate">{f.label}</span>
+                    {f.required && <span className="text-destructive shrink-0">*</span>}
+                    {f.hardValidation && (
+                      <span className="text-[10px] bg-red-100 text-red-800 px-1.5 py-0.5 rounded font-bold">
+                        HARD LOCK
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1 uppercase tracking-wider">
+                    {f.type}
+                  </div>
                 </div>
-              )
-            })
-          )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setFields(fields.filter((x) => x.id !== f.id))
+                  }}
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+            </Card>
+          ))}
         </div>
       </div>
 
@@ -240,159 +182,42 @@ export default function Constructor() {
           onValueChange={setActiveTab}
           className="flex-1 flex flex-col overflow-hidden"
         >
-          <TabsList className="w-full grid grid-cols-2 shrink-0">
-            <TabsTrigger value="toolbox">Componentes</TabsTrigger>
-            <TabsTrigger value="properties" disabled={!activeFieldId}>
-              Propriedades
+          <TabsList className="w-full grid grid-cols-3 shrink-0 h-12">
+            <TabsTrigger value="toolbox" className="text-xs px-1">
+              Comps
+            </TabsTrigger>
+            <TabsTrigger value="properties" disabled={!activeFieldId} className="text-xs px-1">
+              Props
+            </TabsTrigger>
+            <TabsTrigger value="config" className="text-xs px-1">
+              Config
             </TabsTrigger>
           </TabsList>
-
           <TabsContent value="toolbox" className="flex-1 overflow-y-auto mt-4 pr-2">
             <Toolbox onAdd={handleAddField} />
           </TabsContent>
-
           <TabsContent value="properties" className="flex-1 overflow-y-auto mt-4 pr-2">
-            {!activeField ? (
-              <p className="text-sm text-muted-foreground">
-                Selecione um campo no centro para editar.
-              </p>
+            {activeFieldId ? (
+              <PropertiesPanel
+                activeField={fields.find((f) => f.id === activeFieldId)!}
+                fields={fields}
+                handleUpdateField={(id, up) =>
+                  setFields(fields.map((f) => (f.id === id ? { ...f, ...up } : f)))
+                }
+              />
             ) : (
-              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 pb-6">
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Label da Pergunta</Label>
-                    <Input
-                      value={activeField.label}
-                      onChange={(e) => handleUpdateField(activeField.id, { label: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <Label>Obrigatório?</Label>
-                    <Switch
-                      checked={activeField.required}
-                      onCheckedChange={(c) => handleUpdateField(activeField.id, { required: c })}
-                    />
-                  </div>
-
-                  {(activeField.type === 'radio' || activeField.type === 'checkbox') && (
-                    <div className="space-y-2">
-                      <Label>Opções (separadas por vírgula)</Label>
-                      <Input
-                        value={activeField.options || ''}
-                        onChange={(e) =>
-                          handleUpdateField(activeField.id, { options: e.target.value })
-                        }
-                        placeholder="Ex: Sim, Não, N/A"
-                      />
-                    </div>
-                  )}
-
-                  {activeField.type === 'calculation' && (
-                    <div className="space-y-2">
-                      <Label>Fórmula</Label>
-                      <Input
-                        value={activeField.calculation || ''}
-                        onChange={(e) =>
-                          handleUpdateField(activeField.id, { calculation: e.target.value })
-                        }
-                        placeholder="Ex: {{field_1}} * 2"
-                        className="font-mono text-xs"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Use os IDs dos campos entre chaves.
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                <div className="pt-4 border-t space-y-4">
-                  <h4 className="font-medium text-sm text-primary">
-                    Lógica de Visibilidade (Árvore)
-                  </h4>
-                  <div className="space-y-2">
-                    <Label>Depende do campo (ID)</Label>
-                    <Select
-                      value={activeField.logicDependsOn || 'none'}
-                      onValueChange={(val) =>
-                        handleUpdateField(activeField.id, {
-                          logicDependsOn: val === 'none' ? undefined : val,
-                        })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Sempre visível</SelectItem>
-                        {fields
-                          .filter((f) => f.id !== activeField.id)
-                          .map((f) => (
-                            <SelectItem key={f.id} value={f.id}>
-                              {f.label} ({f.id})
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {activeField.logicDependsOn && (
-                    <div className="space-y-2 animate-in slide-down">
-                      <Label>Mostrar quando o valor for:</Label>
-                      <Input
-                        value={activeField.logicValue || ''}
-                        onChange={(e) =>
-                          handleUpdateField(activeField.id, { logicValue: e.target.value })
-                        }
-                        placeholder="Ex: Sim"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                <div className="pt-4 border-t space-y-4">
-                  <h4 className="font-medium text-sm text-primary">
-                    Lógica Quantitativa (Repetidor)
-                  </h4>
-                  <div className="space-y-2">
-                    <Label>Repetir com base no campo (Número)</Label>
-                    <Select
-                      value={activeField.repeatsBasedOn || 'none'}
-                      onValueChange={(val) =>
-                        handleUpdateField(activeField.id, {
-                          repeatsBasedOn: val === 'none' ? undefined : val,
-                        })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione um campo numérico..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Não repetir</SelectItem>
-                        {fields
-                          .filter((f) => f.id !== activeField.id && f.type === 'number')
-                          .map((f) => (
-                            <SelectItem key={f.id} value={f.id}>
-                              {f.label} ({f.id})
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {activeField.repeatsBasedOn && (
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      Este componente será gerado X vezes, onde X é o valor preenchido no campo
-                      selecionado.
-                    </p>
-                  )}
-                </div>
-
-                <div className="pt-4 border-t">
-                  <p className="text-xs text-muted-foreground font-mono bg-muted p-2 rounded">
-                    ID: {activeField.id}
-                  </p>
-                </div>
-              </div>
+              <p className="text-sm text-muted-foreground">Selecione um campo.</p>
             )}
+          </TabsContent>
+          <TabsContent value="config" className="flex-1 overflow-y-auto mt-4 pr-2">
+            <ConfigPanel
+              assignedUsers={assignedUsers}
+              assignedDepartments={assignedDepartments}
+              onChange={(u, d) => {
+                setAssignedUsers(u)
+                setAssignedDepartments(d)
+              }}
+            />
           </TabsContent>
         </Tabs>
       </div>

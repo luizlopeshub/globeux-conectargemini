@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
-import { LayoutDashboard, PenTool, ClipboardList, Database, UserCircle } from 'lucide-react'
+import { LayoutDashboard, PenTool, ClipboardList, Database, Users, ChevronDown } from 'lucide-react'
 import {
   Sidebar,
   SidebarContent,
@@ -10,23 +10,45 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from '@/components/ui/sidebar'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import useAppStore from '@/stores/useAppStore'
 import { cn } from '@/lib/utils'
 
 export default function Layout() {
-  const { role, setRole } = useAppStore()
+  const { currentUser, users, setCurrentUser } = useAppStore()
   const location = useLocation()
 
   const adminMenu = [
     { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
     { name: 'Construtor', icon: PenTool, path: '/builder' },
-    { name: 'Logs de Auditoria', icon: Database, path: '/logs' },
+    { name: 'Logs e Aprovações', icon: Database, path: '/logs' },
+    { name: 'Usuários', icon: Users, path: '/users' },
+  ]
+
+  const supervisorMenu = [
+    { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
+    { name: 'Logs e Aprovações', icon: Database, path: '/logs' },
   ]
 
   const operatorMenu = [{ name: 'Meus Checklists', icon: ClipboardList, path: '/' }]
 
-  const menu = role === 'admin' ? adminMenu : operatorMenu
+  const menu =
+    currentUser?.role === 'admin'
+      ? adminMenu
+      : currentUser?.role === 'supervisor'
+        ? supervisorMenu
+        : operatorMenu
+
+  if (!currentUser) return null
 
   return (
     <SidebarProvider>
@@ -70,24 +92,40 @@ export default function Layout() {
             </div>
 
             <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 text-sm bg-muted px-3 py-1.5 rounded-full">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"></span>
-                <span className="hidden sm:inline">Sincronizado</span>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setRole(role === 'admin' ? 'operator' : 'admin')}
-                className="gap-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
-              >
-                <UserCircle className="h-4 w-4" />
-                <span className="hidden sm:inline">
-                  Simular {role === 'admin' ? 'Operador' : 'Admin'}
-                </span>
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="gap-2 pl-2 border-primary/20">
+                    <Avatar className="h-6 w-6">
+                      <AvatarImage src={currentUser.avatar} />
+                      <AvatarFallback>{currentUser.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <span className="hidden sm:inline font-medium text-sm truncate max-w-[120px]">
+                      {currentUser.name}
+                    </span>
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>Simular Usuário</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {users.map((u) => (
+                    <DropdownMenuItem
+                      key={u.id}
+                      onClick={() => setCurrentUser(u)}
+                      className={cn(currentUser.id === u.id && 'bg-muted')}
+                    >
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-medium">{u.name}</span>
+                        <span className="text-xs text-muted-foreground uppercase">
+                          {u.role} {u.department ? `· ${u.department}` : ''}
+                        </span>
+                      </div>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </header>
-
           <div className="flex-1 overflow-auto p-4 md:p-6 lg:p-8">
             <Outlet />
           </div>
