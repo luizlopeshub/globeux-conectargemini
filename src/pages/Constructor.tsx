@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { generateId } from '@/lib/utils'
 import useAppStore from '@/stores/useAppStore'
-import { FormField, FormBlock, FieldType, Template } from '@/types'
+import { FormField, FormBlock, FieldType, Template, ActiveItem } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
@@ -21,8 +21,6 @@ import {
   ChevronUp,
   ChevronDown,
 } from 'lucide-react'
-
-export type ActiveItem = { id: string; type: 'block' | 'field' } | null
 
 export default function Constructor() {
   const { templates, addTemplate, updateTemplate, currentUser } = useAppStore()
@@ -256,7 +254,7 @@ export default function Constructor() {
                               e.stopPropagation()
                               const globIdx = fields.findIndex((x) => x.id === f.id)
                               const targetIdx = fields.findIndex((x) => x.id === arr[fIdx - 1]?.id)
-                              if (targetIdx !== -1) moveItem(fields, setFields, globIdx, -1) // Simplify, just swap adjacent in global list
+                              if (targetIdx !== -1) moveItem(fields, setFields, globIdx, -1)
                             }}
                           >
                             <ChevronUp className="h-3 w-3" />

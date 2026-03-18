@@ -1,4 +1,4 @@
-import { FormField, FormBlock } from '@/types'
+import { FormField, FormBlock, ActiveItem } from '@/types'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
@@ -10,7 +10,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import useAppStore from '@/stores/useAppStore'
-import { ActiveItem } from '@/pages/Constructor'
 
 interface Props {
   activeItem: ActiveItem

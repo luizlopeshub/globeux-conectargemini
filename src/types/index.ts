@@ -92,3 +92,5 @@ export interface Audit {
   approvalStatus?: 'Pendente' | 'Aprovado' | 'Rejeitado'
   approverName?: string
 }
+
+export type ActiveItem = { id: string; type: 'block' | 'field' } | null
