@@ -22,15 +22,6 @@ export default function Constructor() {
   const [activeFieldId, setActiveFieldId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState('toolbox')
 
-  if (currentUser?.role !== 'admin') {
-    return (
-      <div className="p-8 text-center text-muted-foreground flex flex-col items-center gap-4">
-        <ShieldAlert className="h-12 w-12 text-destructive" />
-        <p>Acesso negado. Apenas administradores podem acessar o Construtor.</p>
-      </div>
-    )
-  }
-
   useEffect(() => {
     if (
       !editingTemplateId &&
@@ -41,6 +32,15 @@ export default function Constructor() {
       loadTemplate(templates[0])
     }
   }, [templates, editingTemplateId, fields.length, templateName])
+
+  if (currentUser?.role !== 'admin') {
+    return (
+      <div className="p-8 text-center text-muted-foreground flex flex-col items-center gap-4">
+        <ShieldAlert className="h-12 w-12 text-destructive" />
+        <p>Acesso negado. Apenas administradores podem acessar o Construtor.</p>
+      </div>
+    )
+  }
 
   const loadTemplate = (t: Template) => {
     setEditingTemplateId(t.id)
