@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import useAppStore from '@/stores/useAppStore'
 import {
   Table,
@@ -14,8 +15,6 @@ import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
-  SelectGroup,
-  SelectLabel,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -23,23 +22,39 @@ import {
 import { AuditReportDialog } from '@/components/AuditReportDialog'
 import { format } from 'date-fns'
 import { FileText, FilterX, Download } from 'lucide-react'
+import { SmartLookup } from '@/components/SmartLookup'
 
 export default function Reports() {
   const { audits, templates, entityDefs, entityRecords } = useAppStore()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const initialSearchDoc = searchParams.get('searchDoc') || ''
+
   const [selectedTemplate, setSelectedTemplate] = useState('all')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
-  const [selectedRef, setSelectedRef] = useState('all')
-  const [searchDoc, setSearchDoc] = useState('')
+  const [selectedRef, setSelectedRef] = useState('')
+  const [searchDoc, setSearchDoc] = useState(initialSearchDoc)
   const [status, setStatus] = useState('all')
   const [selectedAudit, setSelectedAudit] = useState<any>(null)
+  const [visibleCount, setVisibleCount] = useState(20)
+
+  useEffect(() => {
+    if (initialSearchDoc) setSearchDoc(initialSearchDoc)
+  }, [initialSearchDoc])
 
   const filtered = useMemo(() => {
     return audits.filter((a) => {
       if (selectedTemplate !== 'all' && a.templateId !== selectedTemplate) return false
       if (status !== 'all' && a.status !== status && a.approvalStatus !== status) return false
-      if (searchDoc && !a.id.toLowerCase().includes(searchDoc.toLowerCase())) return false
-      if (selectedRef !== 'all') {
+      if (searchDoc) {
+        const term = searchDoc.toLowerCase()
+        const matchId = a.id.toLowerCase().includes(term)
+        const matchAnswers = Object.values(a.answers).some((val) =>
+          String(val).toLowerCase().includes(term),
+        )
+        if (!matchId && !matchAnswers) return false
+      }
+      if (selectedRef) {
         const hasRef = Object.values(a.answers).includes(selectedRef)
         if (!hasRef) return false
       }
@@ -49,6 +64,8 @@ export default function Reports() {
       return true
     })
   }, [audits, selectedTemplate, status, searchDoc, selectedRef, dateFrom, dateTo])
+
+  const paginated = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount])
 
   const resolveValue = (val: any) => {
     if (typeof val === 'string' && val.length > 0) {
@@ -65,9 +82,10 @@ export default function Reports() {
     setSelectedTemplate('all')
     setDateFrom('')
     setDateTo('')
-    setSelectedRef('all')
+    setSelectedRef('')
     setSearchDoc('')
     setStatus('all')
+    setSearchParams({})
   }
 
   return (
@@ -80,13 +98,13 @@ export default function Reports() {
           </p>
         </div>
         <Button variant="outline" className="gap-2">
-          <Download className="h-4 w-4" /> Exportar Dados
+          <Download className="h-4 w-4" /> Exportar
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 bg-card p-4 rounded-lg border shadow-sm items-end">
-        <div className="space-y-2 lg:col-span-2">
-          <Label>Visão / Template</Label>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 bg-card p-4 rounded-lg border shadow-sm items-end">
+        <div className="space-y-2">
+          <Label>Visão / Checklist</Label>
           <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
             <SelectTrigger>
               <SelectValue placeholder="Checklist" />
@@ -115,53 +133,38 @@ export default function Reports() {
             </SelectContent>
           </Select>
         </div>
+        <div className="space-y-2 md:col-span-2">
+          <Label>Referência Mestre (Smart Lookup)</Label>
+          <SmartLookup value={selectedRef} onChange={setSelectedRef} allowEntityChange={true} />
+        </div>
         <div className="space-y-2">
-          <Label>Referência de Cadastro</Label>
-          <Select value={selectedRef} onValueChange={setSelectedRef}>
-            <SelectTrigger>
-              <SelectValue placeholder="Qualquer" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              {entityDefs.map((def) => {
-                const recs = entityRecords.filter((r) => r.entityId === def.id)
-                if (recs.length === 0) return null
-                return (
-                  <SelectGroup key={def.id}>
-                    <SelectLabel>{def.name}</SelectLabel>
-                    {recs.map((r) => (
-                      <SelectItem key={r.id} value={r.id}>
-                        {r[def.fields[0]?.id || 'id']}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                )
-              })}
-            </SelectContent>
-          </Select>
+          <Label>Busca Global</Label>
+          <Input
+            placeholder="Doc/NF ou Ref..."
+            value={searchDoc}
+            onChange={(e) => setSearchDoc(e.target.value)}
+          />
         </div>
         <div className="space-y-2">
           <Label>Data Início</Label>
           <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
         </div>
+        <div className="space-y-2">
+          <Label>Data Fim</Label>
+          <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+        </div>
         <div className="flex items-center gap-2">
-          <div className="space-y-2 flex-1">
-            <Label>Data Fim</Label>
-            <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-          </div>
           <Button
             variant="ghost"
-            size="icon"
             onClick={handleClear}
-            title="Limpar Filtros"
-            className="mt-7 text-muted-foreground"
+            className="w-full text-muted-foreground border border-input"
           >
-            <FilterX className="h-4 w-4" />
+            <FilterX className="h-4 w-4 mr-2" /> Limpar Filtros
           </Button>
         </div>
       </div>
 
-      <div className="border rounded-lg bg-card overflow-hidden shadow-sm">
+      <div className="border rounded-lg bg-card overflow-hidden shadow-sm flex flex-col">
         <Table>
           <TableHeader className="bg-muted/50">
             <TableRow>
@@ -173,7 +176,7 @@ export default function Reports() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.map((a) => {
+            {paginated.map((a) => {
               const refs = Object.values(a.answers).filter(
                 (v) =>
                   typeof v === 'string' &&
@@ -199,7 +202,7 @@ export default function Reports() {
                 </TableRow>
               )
             })}
-            {filtered.length === 0 && (
+            {paginated.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                   Nenhum registro encontrado para estes filtros.
@@ -208,6 +211,13 @@ export default function Reports() {
             )}
           </TableBody>
         </Table>
+        {visibleCount < filtered.length && (
+          <div className="p-4 flex justify-center border-t bg-muted/20">
+            <Button variant="outline" onClick={() => setVisibleCount((v) => v + 20)}>
+              Carregar Mais ({filtered.length - visibleCount} restantes)
+            </Button>
+          </div>
+        )}
       </div>
       <AuditReportDialog
         audit={selectedAudit}

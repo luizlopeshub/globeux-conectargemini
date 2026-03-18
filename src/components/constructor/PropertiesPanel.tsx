@@ -54,17 +54,20 @@ export function PropertiesPanel({ activeField, fields, handleUpdateField }: Prop
         {activeField.type === 'lookup' && (
           <div className="pt-4 border-t space-y-4">
             <div className="space-y-2">
-              <Label>Entidade de Cadastro Fonte</Label>
+              <Label>Tipo de Entidade Restrita (Opcional)</Label>
               <Select
-                value={activeField.lookupSource || ''}
+                value={activeField.lookupSource || 'any'}
                 onValueChange={(val: any) =>
-                  handleUpdateField(activeField.id, { lookupSource: val })
+                  handleUpdateField(activeField.id, {
+                    lookupSource: val === 'any' ? undefined : val,
+                  })
                 }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione..." />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="any">Qualquer (Usuário escolhe na hora)</SelectItem>
                   {entityDefs.map((def) => (
                     <SelectItem key={def.id} value={def.id}>
                       {def.name}
@@ -72,6 +75,9 @@ export function PropertiesPanel({ activeField, fields, handleUpdateField }: Prop
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Se selecionado, o executor só poderá buscar registros desta entidade.
+              </p>
             </div>
           </div>
         )}

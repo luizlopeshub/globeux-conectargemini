@@ -1,4 +1,4 @@
-import { Outlet, Link, useLocation } from 'react-router-dom'
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
   PenTool,
@@ -10,6 +10,7 @@ import {
   ChevronRight,
   LineChart,
   Settings,
+  Search,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -35,12 +36,14 @@ import {
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import useAppStore from '@/stores/useAppStore'
 import { cn } from '@/lib/utils'
 
 export default function Layout() {
   const { currentUser, users, setCurrentUser, entityDefs } = useAppStore()
   const location = useLocation()
+  const navigate = useNavigate()
 
   if (!currentUser) return null
 
@@ -134,19 +137,33 @@ export default function Layout() {
 
         <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
           <header className="h-14 border-b flex items-center justify-between px-4 bg-card shrink-0">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-1 min-w-0 mr-4">
               <SidebarTrigger />
-              <h1 className="font-medium text-sm md:text-base truncate">Aplicação</h1>
+              <h1 className="hidden md:block font-medium text-sm md:text-base truncate mr-2">
+                Aplicação
+              </h1>
+              <div className="relative w-full max-w-sm ml-auto sm:ml-0">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar Documento ou NF..."
+                  className="pl-9 bg-muted/50 border-transparent focus-visible:bg-background h-9 text-sm w-full"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      navigate(`/reports?searchDoc=${encodeURIComponent(e.currentTarget.value)}`)
+                    }
+                  }}
+                />
+              </div>
             </div>
             <div className="flex items-center gap-4">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="gap-2 pl-2 border-primary/20">
+                  <Button variant="outline" className="gap-2 pl-2 border-primary/20 shrink-0">
                     <Avatar className="h-6 w-6">
                       <AvatarImage src={currentUser.avatar} />
                       <AvatarFallback>{currentUser.name.charAt(0)}</AvatarFallback>
                     </Avatar>
-                    <span className="hidden sm:inline font-medium text-sm truncate max-w-[120px]">
+                    <span className="hidden lg:inline font-medium text-sm truncate max-w-[120px]">
                       {currentUser.name}
                     </span>
                     <ChevronDown className="h-4 w-4 text-muted-foreground" />
