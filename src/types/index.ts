@@ -9,6 +9,29 @@ export interface User {
   avatar: string
 }
 
+export interface Client {
+  id: string
+  name: string
+  cnpj: string
+  address: string
+}
+
+export interface Product {
+  id: string
+  name: string
+  sku: string
+  category: string
+}
+
+export interface Carrier {
+  id: string
+  name: string
+  fleetType: string
+  contact: string
+}
+
+export type LookupSource = 'clients' | 'products' | 'carriers'
+
 export type FieldType =
   | 'text'
   | 'number'
@@ -18,6 +41,7 @@ export type FieldType =
   | 'camera'
   | 'signature'
   | 'calculation'
+  | 'lookup'
 
 export interface FormField {
   id: string
@@ -36,6 +60,8 @@ export interface FormField {
   hardValidationMin?: number
   hardValidationMax?: number
   hardValidationMessage?: string
+  // Lookup
+  lookupSource?: LookupSource
 }
 
 export interface Template {

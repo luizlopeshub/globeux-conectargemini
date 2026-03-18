@@ -5,8 +5,18 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Camera, MapPin, Edit3 } from 'lucide-react'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
+import { Camera, MapPin, Edit3, ChevronsUpDown, Check } from 'lucide-react'
 import { useMemo } from 'react'
+import useAppStore from '@/stores/useAppStore'
 
 interface Props {
   field: FormField
@@ -17,16 +27,15 @@ interface Props {
 }
 
 export function FieldRenderer({ field, value, onChange, allAnswers, error }: Props) {
+  const store = useAppStore()
   const options = field.options ? field.options.split(',').map((s) => s.trim()) : []
 
   const calcValue = useMemo(() => {
     if (field.type !== 'calculation') return 0
     const sources = field.calcSourceFields || []
     if (sources.length === 0) return 0
-
     const vals = sources.map((id) => Number(allAnswers[id]) || 0)
     const sum = vals.reduce((acc, curr) => acc + curr, 0)
-
     if (field.calcOperation === 'average') return vals.length ? (sum / vals.length).toFixed(2) : 0
     return sum
   }, [field.type, field.calcOperation, field.calcSourceFields, allAnswers])
@@ -50,6 +59,45 @@ export function FieldRenderer({ field, value, onChange, allAnswers, error }: Pro
             className={`h-12 bg-white ${error ? 'border-destructive' : ''}`}
           />
         )
+      case 'lookup': {
+        const items =
+          field.lookupSource === 'products'
+            ? store.products
+            : field.lookupSource === 'carriers'
+              ? store.carriers
+              : store.clients
+        return (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={`w-full justify-between h-12 bg-white font-normal ${error ? 'border-destructive' : ''}`}
+              >
+                {value ? items.find((i: any) => i.id === value)?.name : 'Selecione o cadastro...'}
+                <ChevronsUpDown className="h-4 w-4 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-full p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Buscar..." />
+                <CommandList>
+                  <CommandEmpty>Nenhum registro encontrado.</CommandEmpty>
+                  <CommandGroup>
+                    {items.map((item: any) => (
+                      <CommandItem key={item.id} onSelect={() => onChange(item.id)}>
+                        <Check
+                          className={`mr-2 h-4 w-4 ${value === item.id ? 'opacity-100' : 'opacity-0'}`}
+                        />
+                        {item.name}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+        )
+      }
       case 'radio':
         return (
           <RadioGroup value={value} onValueChange={onChange} className="flex flex-col gap-3">
@@ -100,7 +148,7 @@ export function FieldRenderer({ field, value, onChange, allAnswers, error }: Pro
             className="h-12 w-full gap-2 bg-white"
             onClick={() => onChange('-23.5505, -46.6333')}
           >
-            <MapPin className="h-4 w-4 text-blue-500" /> Capturar Localização Atual
+            <MapPin className="h-4 w-4 text-blue-500" /> Capturar Localização
           </Button>
         )
       case 'camera':

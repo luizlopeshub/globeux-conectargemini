@@ -10,6 +10,10 @@ const Constructor = lazy(() => import('./pages/Constructor'))
 const Executor = lazy(() => import('./pages/Executor'))
 const AuditLogs = lazy(() => import('./pages/AuditLogs'))
 const Users = lazy(() => import('./pages/Users'))
+const Reports = lazy(() => import('./pages/Reports'))
+const Clients = lazy(() => import('./pages/master-data/Clients'))
+const Products = lazy(() => import('./pages/master-data/Products'))
+const Carriers = lazy(() => import('./pages/master-data/Carriers'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 
 const PageLoader = () => (
@@ -31,6 +35,10 @@ const App = () => (
             <Route path="/execute/:id" element={<Executor />} />
             <Route path="/logs" element={<AuditLogs />} />
             <Route path="/users" element={<Users />} />
+            <Route path="/reports" element={<Reports />} />
+            <Route path="/master-data/clients" element={<Clients />} />
+            <Route path="/master-data/products" element={<Products />} />
+            <Route path="/master-data/carriers" element={<Carriers />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

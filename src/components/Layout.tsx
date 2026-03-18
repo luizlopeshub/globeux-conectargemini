@@ -1,5 +1,15 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
-import { LayoutDashboard, PenTool, ClipboardList, Database, Users, ChevronDown } from 'lucide-react'
+import {
+  LayoutDashboard,
+  PenTool,
+  ClipboardList,
+  Database,
+  Users,
+  ChevronDown,
+  Briefcase,
+  ChevronRight,
+  LineChart,
+} from 'lucide-react'
 import {
   Sidebar,
   SidebarContent,
@@ -9,6 +19,9 @@ import {
   SidebarMenuButton,
   SidebarProvider,
   SidebarTrigger,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
 } from '@/components/ui/sidebar'
 import {
   DropdownMenu,
@@ -18,6 +31,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import useAppStore from '@/stores/useAppStore'
@@ -27,28 +41,27 @@ export default function Layout() {
   const { currentUser, users, setCurrentUser } = useAppStore()
   const location = useLocation()
 
-  const adminMenu = [
-    { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
-    { name: 'Construtor', icon: PenTool, path: '/builder' },
-    { name: 'Logs e Aprovações', icon: Database, path: '/logs' },
-    { name: 'Usuários', icon: Users, path: '/users' },
-  ]
-
-  const supervisorMenu = [
-    { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
-    { name: 'Logs e Aprovações', icon: Database, path: '/logs' },
-  ]
-
-  const operatorMenu = [{ name: 'Meus Checklists', icon: ClipboardList, path: '/' }]
-
-  const menu =
-    currentUser?.role === 'admin'
-      ? adminMenu
-      : currentUser?.role === 'supervisor'
-        ? supervisorMenu
-        : operatorMenu
-
   if (!currentUser) return null
+
+  const renderMenuItem = (name: string, icon: any, path: string) => (
+    <SidebarMenuItem key={name}>
+      <SidebarMenuButton
+        asChild
+        isActive={location.pathname === path}
+        className={cn(
+          'transition-colors',
+          location.pathname === path
+            ? 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground'
+            : '',
+        )}
+      >
+        <Link to={path}>
+          {icon && <icon.type className="h-4 w-4 mr-2" />}
+          <span>{name}</span>
+        </Link>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  )
 
   return (
     <SidebarProvider>
@@ -59,25 +72,62 @@ export default function Layout() {
           </SidebarHeader>
           <SidebarContent className="p-2">
             <SidebarMenu>
-              {menu.map((item) => (
-                <SidebarMenuItem key={item.name}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={location.pathname === item.path}
-                    className={cn(
-                      'transition-colors',
-                      location.pathname === item.path
-                        ? 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground'
-                        : '',
-                    )}
-                  >
-                    <Link to={item.path}>
-                      <item.icon className="h-4 w-4 mr-2" />
-                      <span>{item.name}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {currentUser.role === 'admin' ? (
+                <>
+                  {renderMenuItem('Dashboard', <LayoutDashboard />, '/')}
+                  {renderMenuItem('Construtor', <PenTool />, '/builder')}
+                  <Collapsible defaultOpen className="group/collapsible">
+                    <SidebarMenuItem>
+                      <CollapsibleTrigger asChild>
+                        <SidebarMenuButton>
+                          <Briefcase className="h-4 w-4 mr-2" />
+                          <span>Cadastros</span>
+                          <ChevronRight className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-90" />
+                        </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <SidebarMenuSub>
+                          <SidebarMenuSubItem>
+                            <SidebarMenuSubButton
+                              asChild
+                              isActive={location.pathname === '/master-data/clients'}
+                            >
+                              <Link to="/master-data/clients">Clientes</Link>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                          <SidebarMenuSubItem>
+                            <SidebarMenuSubButton
+                              asChild
+                              isActive={location.pathname === '/master-data/products'}
+                            >
+                              <Link to="/master-data/products">Produtos</Link>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                          <SidebarMenuSubItem>
+                            <SidebarMenuSubButton
+                              asChild
+                              isActive={location.pathname === '/master-data/carriers'}
+                            >
+                              <Link to="/master-data/carriers">Transportadoras</Link>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        </SidebarMenuSub>
+                      </CollapsibleContent>
+                    </SidebarMenuItem>
+                  </Collapsible>
+                  {renderMenuItem('Relatórios e Consultas', <LineChart />, '/reports')}
+                  {renderMenuItem('Logs e Aprovações', <Database />, '/logs')}
+                  {renderMenuItem('Usuários', <Users />, '/users')}
+                </>
+              ) : currentUser.role === 'supervisor' ? (
+                <>
+                  {renderMenuItem('Dashboard', <LayoutDashboard />, '/')}
+                  {renderMenuItem('Relatórios e Consultas', <LineChart />, '/reports')}
+                  {renderMenuItem('Logs e Aprovações', <Database />, '/logs')}
+                </>
+              ) : (
+                <>{renderMenuItem('Meus Checklists', <ClipboardList />, '/')}</>
+              )}
             </SidebarMenu>
           </SidebarContent>
         </Sidebar>
@@ -86,11 +136,8 @@ export default function Layout() {
           <header className="h-14 border-b flex items-center justify-between px-4 bg-card shrink-0">
             <div className="flex items-center gap-2">
               <SidebarTrigger />
-              <h1 className="font-medium text-sm md:text-base truncate">
-                {menu.find((m) => m.path === location.pathname)?.name || 'Aplicação'}
-              </h1>
+              <h1 className="font-medium text-sm md:text-base truncate">Aplicação</h1>
             </div>
-
             <div className="flex items-center gap-4">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

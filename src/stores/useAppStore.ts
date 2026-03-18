@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Role, Template, Audit, User } from '@/types'
+import { Role, Template, Audit, User, Client, Product, Carrier } from '@/types'
 
 interface AppState {
   users: User[]
@@ -7,6 +7,9 @@ interface AppState {
   templates: Template[]
   audits: Audit[]
   drafts: Record<string, Record<string, any>>
+  clients: Client[]
+  products: Product[]
+  carriers: Carrier[]
 }
 
 const mockUsers: User[] = [
@@ -43,6 +46,20 @@ const mockUsers: User[] = [
   },
 ]
 
+const mockClients: Client[] = [
+  { id: 'c1', name: 'Logística Alfa', cnpj: '12.345.678/0001-90', address: 'Av. Paulista, 1000' },
+  { id: 'c2', name: 'Transportes Beta', cnpj: '98.765.432/0001-10', address: 'Rua Augusta, 500' },
+]
+
+const mockProducts: Product[] = [
+  { id: 'p1', name: 'Caixa de Papelão 50x50', sku: 'CX-50', category: 'Embalagens' },
+  { id: 'p2', name: 'Fita Adesiva 45mm', sku: 'FT-45', category: 'Insumos' },
+]
+
+const mockCarriers: Carrier[] = [
+  { id: 't1', name: 'Expresso Rápido', fleetType: 'Caminhão Baú', contact: 'contato@expresso.com' },
+]
+
 const mockTemplates: Template[] = [
   {
     id: 't1',
@@ -67,19 +84,24 @@ const mockTemplates: Template[] = [
   },
   {
     id: 't2',
-    name: 'Cálculo de Carga Total',
-    description: 'Verificação com cálculos automáticos.',
+    name: 'Expedição de Carga',
+    description: 'Verificação de transportadora e cliente.',
     createdAt: '2023-10-02T10:30:00Z',
     assignedUsers: ['u3'],
     fields: [
-      { id: 'f1', type: 'number', label: 'Peso Pallet 1 (kg)', required: true },
-      { id: 'f2', type: 'number', label: 'Peso Pallet 2 (kg)', required: true },
       {
-        id: 'f3',
-        type: 'calculation',
-        label: 'Peso Total',
-        calcOperation: 'sum',
-        calcSourceFields: ['f1', 'f2'],
+        id: 'f1',
+        type: 'lookup',
+        label: 'Cliente Destino',
+        lookupSource: 'clients',
+        required: true,
+      },
+      {
+        id: 'f2',
+        type: 'lookup',
+        label: 'Transportadora',
+        lookupSource: 'carriers',
+        required: true,
       },
     ],
   },
@@ -107,6 +129,9 @@ let globalState: AppState = {
   templates: mockTemplates,
   audits: mockAudits,
   drafts: {},
+  clients: mockClients,
+  products: mockProducts,
+  carriers: mockCarriers,
 }
 
 let listeners: Array<(state: AppState) => void> = []
@@ -130,25 +155,28 @@ export default function useAppStore() {
     ...state,
     setCurrentUser: (user: User) => update({ currentUser: user }),
     setUsers: (users: User[]) => update({ users }),
-    addTemplate: (template: Template) =>
-      update({ templates: [...globalState.templates, template] }),
-    updateTemplate: (template: Template) =>
-      update({
-        templates: globalState.templates.map((t) => (t.id === template.id ? template : t)),
-      }),
-    saveDraft: (templateId: string, answers: Record<string, any>) =>
-      update({ drafts: { ...globalState.drafts, [templateId]: answers } }),
-    submitAudit: (audit: Audit) => {
-      const newDrafts = { ...globalState.drafts }
-      delete newDrafts[audit.templateId]
-      update({ audits: [audit, ...globalState.audits], drafts: newDrafts })
+    addTemplate: (t: Template) => update({ templates: [...globalState.templates, t] }),
+    updateTemplate: (t: Template) =>
+      update({ templates: globalState.templates.map((x) => (x.id === t.id ? t : x)) }),
+    saveDraft: (tid: string, answers: Record<string, any>) =>
+      update({ drafts: { ...globalState.drafts, [tid]: answers } }),
+    submitAudit: (a: Audit) => {
+      const nd = { ...globalState.drafts }
+      delete nd[a.templateId]
+      update({ audits: [a, ...globalState.audits], drafts: nd })
     },
-    approveAudit: (auditId: string, status: 'Aprovado' | 'Rejeitado', approverName: string) => {
+    approveAudit: (id: string, s: 'Aprovado' | 'Rejeitado', approver: string) => {
       update({
         audits: globalState.audits.map((a) =>
-          a.id === auditId ? { ...a, approvalStatus: status, approverName } : a,
+          a.id === id ? { ...a, approvalStatus: s, approverName: approver } : a,
         ),
       })
     },
+    addEntity: (type: 'clients' | 'products' | 'carriers', item: any) =>
+      update({ [type]: [...globalState[type], item] }),
+    updateEntity: (type: 'clients' | 'products' | 'carriers', item: any) =>
+      update({ [type]: (globalState[type] as any[]).map((i) => (i.id === item.id ? item : i)) }),
+    deleteEntity: (type: 'clients' | 'products' | 'carriers', id: string) =>
+      update({ [type]: (globalState[type] as any[]).filter((i) => i.id !== id) }),
   }
 }

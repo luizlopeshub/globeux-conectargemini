@@ -9,6 +9,7 @@ import {
   Camera,
   Signature,
   Calculator,
+  Database,
 } from 'lucide-react'
 
 export function Toolbox({ onAdd }: { onAdd: (t: FieldType) => void }) {
@@ -17,6 +18,7 @@ export function Toolbox({ onAdd }: { onAdd: (t: FieldType) => void }) {
     { type: 'number', icon: Hash, label: 'Número' },
     { type: 'radio', icon: ListFilter, label: 'Seleção Única' },
     { type: 'checkbox', icon: CheckSquare, label: 'Múltipla Escolha' },
+    { type: 'lookup', icon: Database, label: 'Seleção de Cadastro' },
     { type: 'gps', icon: MapPin, label: 'Localização GPS' },
     { type: 'camera', icon: Camera, label: 'Foto / Câmera' },
     { type: 'signature', icon: Signature, label: 'Assinatura' },

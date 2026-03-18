@@ -49,6 +49,29 @@ export function PropertiesPanel({ activeField, fields, handleUpdateField }: Prop
           </div>
         )}
 
+        {activeField.type === 'lookup' && (
+          <div className="pt-4 border-t space-y-4">
+            <div className="space-y-2">
+              <Label>Tabela Fonte de Dados</Label>
+              <Select
+                value={activeField.lookupSource || 'clients'}
+                onValueChange={(val: any) =>
+                  handleUpdateField(activeField.id, { lookupSource: val })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="clients">Clientes</SelectItem>
+                  <SelectItem value="products">Produtos</SelectItem>
+                  <SelectItem value="carriers">Transportadoras</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        )}
+
         {activeField.type === 'number' && (
           <div className="pt-4 border-t space-y-4">
             <div className="flex items-center justify-between">
@@ -87,13 +110,13 @@ export function PropertiesPanel({ activeField, fields, handleUpdateField }: Prop
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Mensagem de Erro Personalizada</Label>
+                  <Label className="text-xs">Mensagem de Erro</Label>
                   <Input
                     value={activeField.hardValidationMessage || ''}
                     onChange={(e) =>
                       handleUpdateField(activeField.id, { hardValidationMessage: e.target.value })
                     }
-                    placeholder="Ex: Valor fora do limite permitido."
+                    placeholder="Ex: Fora do limite."
                   />
                 </div>
               </div>
@@ -121,12 +144,10 @@ export function PropertiesPanel({ activeField, fields, handleUpdateField }: Prop
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Campos Fonte (Multi-seleção)</Label>
+              <Label>Campos Fonte</Label>
               <div className="border rounded-md p-2 max-h-32 overflow-y-auto space-y-2 bg-background">
                 {numericFields.length === 0 ? (
-                  <p className="text-xs text-muted-foreground p-2">
-                    Nenhum campo numérico disponível.
-                  </p>
+                  <p className="text-xs text-muted-foreground p-2">Sem campos numéricos.</p>
                 ) : (
                   numericFields.map((f) => {
                     const isSelected = activeField.calcSourceFields?.includes(f.id)
@@ -161,7 +182,7 @@ export function PropertiesPanel({ activeField, fields, handleUpdateField }: Prop
       </div>
 
       <div className="pt-4 border-t space-y-4">
-        <h4 className="font-medium text-sm text-primary">Lógica de Visibilidade (Árvore)</h4>
+        <h4 className="font-medium text-sm text-primary">Lógica de Visibilidade</h4>
         <div className="space-y-2">
           <Select
             value={activeField.logicDependsOn || 'none'}
@@ -186,11 +207,6 @@ export function PropertiesPanel({ activeField, fields, handleUpdateField }: Prop
             </SelectContent>
           </Select>
         </div>
-      </div>
-      <div className="pt-4 border-t">
-        <p className="text-xs text-muted-foreground font-mono bg-muted p-2 rounded">
-          ID: {activeField.id}
-        </p>
       </div>
     </div>
   )
