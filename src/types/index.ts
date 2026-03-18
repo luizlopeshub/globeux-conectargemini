@@ -43,6 +43,7 @@ export type FieldType =
 
 export interface FormField {
   id: string
+  blockId: string
   type: FieldType
   label: string
   options?: string
@@ -56,13 +57,21 @@ export interface FormField {
   hardValidationMin?: number
   hardValidationMax?: number
   hardValidationMessage?: string
-  lookupSource?: string // Now points to Custom Entity ID
+  lookupSource?: string
+}
+
+export interface FormBlock {
+  id: string
+  name: string
+  logicDependsOn?: string
+  logicValue?: string
 }
 
 export interface Template {
   id: string
   name: string
   description: string
+  blocks: FormBlock[]
   fields: FormField[]
   createdAt: string
   assignedUsers?: string[]

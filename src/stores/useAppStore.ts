@@ -1,12 +1,17 @@
 import { useState, useEffect } from 'react'
 import { Role, Template, Audit, User, EntityDef, EntityRecord } from '@/types'
 
+interface DraftState {
+  answers: Record<string, any>
+  step: number
+}
+
 interface AppState {
   users: User[]
   currentUser: User | null
   templates: Template[]
   audits: Audit[]
-  drafts: Record<string, Record<string, any>>
+  drafts: Record<string, DraftState>
   entityDefs: EntityDef[]
   entityRecords: EntityRecord[]
 }
@@ -49,16 +54,6 @@ const mockEntityDefs: EntityDef[] = [
     ],
   },
   {
-    id: 'products',
-    name: 'Produtos',
-    slug: 'produtos',
-    fields: [
-      { id: 'name', name: 'Nome do Produto', type: 'text' },
-      { id: 'sku', name: 'SKU / Código', type: 'text' },
-      { id: 'category', name: 'Categoria', type: 'text' },
-    ],
-  },
-  {
     id: 'carriers',
     name: 'Transportadoras',
     slug: 'transportadoras',
@@ -79,20 +74,6 @@ const mockEntityRecords: EntityRecord[] = [
     address: 'Av. Paulista, 1000',
   },
   {
-    id: 'c2',
-    entityId: 'clients',
-    name: 'Transportes Beta',
-    cnpj: '98.765.432/0001-10',
-    address: 'Rua Augusta, 500',
-  },
-  {
-    id: 'p1',
-    entityId: 'products',
-    name: 'Caixa de Papelão 50x50',
-    sku: 'CX-50',
-    category: 'Embalagens',
-  },
-  {
     id: 't1',
     entityId: 'carriers',
     name: 'Expresso Rápido',
@@ -107,9 +88,14 @@ const mockTemplates: Template[] = [
     name: 'Expedição de Carga',
     description: 'Verificação de transportadora e cliente.',
     createdAt: '2023-10-02T10:30:00Z',
+    blocks: [
+      { id: 'b1', name: 'Bloco 1: Cadastro' },
+      { id: 'b2', name: 'Bloco 2: Verificação de Carga' },
+    ],
     fields: [
       {
         id: 'f1',
+        blockId: 'b1',
         type: 'lookup',
         label: 'Cliente Destino',
         lookupSource: 'clients',
@@ -117,9 +103,18 @@ const mockTemplates: Template[] = [
       },
       {
         id: 'f2',
+        blockId: 'b1',
         type: 'lookup',
         label: 'Transportadora',
         lookupSource: 'carriers',
+        required: true,
+      },
+      {
+        id: 'f3',
+        blockId: 'b2',
+        type: 'radio',
+        label: 'Condição da Carga',
+        options: 'Perfeita, Avariada',
         required: true,
       },
     ],
@@ -138,7 +133,7 @@ const mockAudits: Audit[] = [
     location: '-23.5505, -46.6333',
     status: 'Concluído',
     approvalStatus: 'Pendente',
-    answers: { f1: 'c1', f2: 't1' },
+    answers: { f1: 'c1', f2: 't1', f3: 'Perfeita' },
   },
 ]
 
@@ -175,8 +170,8 @@ export default function useAppStore() {
     addTemplate: (t: Template) => update({ templates: [...globalState.templates, t] }),
     updateTemplate: (t: Template) =>
       update({ templates: globalState.templates.map((x) => (x.id === t.id ? t : x)) }),
-    saveDraft: (tid: string, answers: Record<string, any>) =>
-      update({ drafts: { ...globalState.drafts, [tid]: answers } }),
+    saveDraft: (tid: string, data: DraftState) =>
+      update({ drafts: { ...globalState.drafts, [tid]: data } }),
     submitAudit: (a: Audit) => {
       const nd = { ...globalState.drafts }
       delete nd[a.templateId]
@@ -189,28 +184,5 @@ export default function useAppStore() {
         ),
       })
     },
-    saveEntityDef: (def: EntityDef) => {
-      const exists = globalState.entityDefs.find((d) => d.id === def.id)
-      update({
-        entityDefs: exists
-          ? globalState.entityDefs.map((d) => (d.id === def.id ? def : d))
-          : [...globalState.entityDefs, def],
-      })
-    },
-    deleteEntityDef: (id: string) =>
-      update({
-        entityDefs: globalState.entityDefs.filter((d) => d.id !== id),
-        entityRecords: globalState.entityRecords.filter((r) => r.entityId !== id),
-      }),
-    saveEntityRecord: (rec: EntityRecord) => {
-      const exists = globalState.entityRecords.find((r) => r.id === rec.id)
-      update({
-        entityRecords: exists
-          ? globalState.entityRecords.map((r) => (r.id === rec.id ? rec : r))
-          : [...globalState.entityRecords, rec],
-      })
-    },
-    deleteEntityRecord: (id: string) =>
-      update({ entityRecords: globalState.entityRecords.filter((r) => r.id !== id) }),
   }
 }
