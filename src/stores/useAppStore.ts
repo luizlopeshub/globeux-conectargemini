@@ -1,5 +1,15 @@
 import { useState, useEffect } from 'react'
-import { Role, Template, Audit, User, EntityDef, EntityRecord } from '@/types'
+import {
+  Role,
+  Template,
+  Audit,
+  User,
+  EntityDef,
+  EntityRecord,
+  Schedule,
+  Task,
+  ActionPlan,
+} from '@/types'
 
 interface DraftState {
   answers: Record<string, any>
@@ -14,6 +24,9 @@ interface AppState {
   drafts: Record<string, DraftState>
   entityDefs: EntityDef[]
   entityRecords: EntityRecord[]
+  schedules: Schedule[]
+  tasks: Task[]
+  actionPlans: ActionPlan[]
 }
 
 const mockUsers: User[] = [
@@ -137,6 +150,42 @@ const mockAudits: Audit[] = [
   },
 ]
 
+const mockSchedules: Schedule[] = [
+  {
+    id: 's1',
+    recurrence: 'weekly',
+    template_id: 't1',
+    assigned_to: 'u3',
+    created: new Date().toISOString(),
+    updated: new Date().toISOString(),
+  },
+]
+
+const mockTasks: Task[] = [
+  {
+    id: 'tsk1',
+    status: 'pending',
+    due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    user_id: 'u3',
+    title: 'Verificar extintores',
+    description: 'Realizar checagem semanal dos extintores no armazém',
+    created: new Date().toISOString(),
+    updated: new Date().toISOString(),
+  },
+]
+
+const mockActionPlans: ActionPlan[] = [
+  {
+    id: 'ap1',
+    field_id: 'f3',
+    responsible_id: 'u2',
+    status: 'open',
+    description: 'Corrigir avarias encontradas na carga',
+    created: new Date().toISOString(),
+    updated: new Date().toISOString(),
+  },
+]
+
 let globalState: AppState = {
   users: mockUsers,
   currentUser: mockUsers[0],
@@ -145,6 +194,9 @@ let globalState: AppState = {
   drafts: {},
   entityDefs: mockEntityDefs,
   entityRecords: mockEntityRecords,
+  schedules: mockSchedules,
+  tasks: mockTasks,
+  actionPlans: mockActionPlans,
 }
 
 let listeners: Array<(state: AppState) => void> = []
@@ -184,5 +236,19 @@ export default function useAppStore() {
         ),
       })
     },
+    addSchedule: (s: Schedule) => update({ schedules: [...globalState.schedules, s] }),
+    updateSchedule: (s: Schedule) =>
+      update({ schedules: globalState.schedules.map((x) => (x.id === s.id ? s : x)) }),
+    deleteSchedule: (id: string) =>
+      update({ schedules: globalState.schedules.filter((x) => x.id !== id) }),
+    addTask: (t: Task) => update({ tasks: [...globalState.tasks, t] }),
+    updateTask: (t: Task) =>
+      update({ tasks: globalState.tasks.map((x) => (x.id === t.id ? t : x)) }),
+    deleteTask: (id: string) => update({ tasks: globalState.tasks.filter((x) => x.id !== id) }),
+    addActionPlan: (ap: ActionPlan) => update({ actionPlans: [...globalState.actionPlans, ap] }),
+    updateActionPlan: (ap: ActionPlan) =>
+      update({ actionPlans: globalState.actionPlans.map((x) => (x.id === ap.id ? ap : x)) }),
+    deleteActionPlan: (id: string) =>
+      update({ actionPlans: globalState.actionPlans.filter((x) => x.id !== id) }),
   }
 }

@@ -58,6 +58,7 @@ export interface FormField {
   hardValidationMax?: number
   hardValidationMessage?: string
   lookupSource?: string
+  triggers?: Array<'require_photo' | 'create_action_plan' | 'send_notification'>
 }
 
 export interface FormBlock {
@@ -76,6 +77,41 @@ export interface Template {
   createdAt: string
   assignedUsers?: string[]
   assignedDepartments?: string[]
+  exportOptions?: Array<'PDF' | 'CSV' | 'API'>
+  approvalWorkflow?: {
+    enabled: boolean
+    sla_days: number
+  }
+}
+
+export interface Schedule {
+  id: string
+  recurrence: 'daily' | 'weekly' | 'monthly' | 'custom'
+  template_id: string
+  assigned_to: string
+  created: string
+  updated: string
+}
+
+export interface Task {
+  id: string
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled'
+  due_date: string
+  user_id: string
+  title: string
+  description: string
+  created: string
+  updated: string
+}
+
+export interface ActionPlan {
+  id: string
+  field_id: string
+  responsible_id: string
+  status: 'open' | 'resolved'
+  description: string
+  created: string
+  updated: string
 }
 
 export interface Audit {
