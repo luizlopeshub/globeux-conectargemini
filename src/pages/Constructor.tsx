@@ -1,20 +1,15 @@
 import { useState, useEffect } from 'react'
 import { generateId } from '@/lib/utils'
 import useAppStore from '@/stores/useAppStore'
-import { FormField, FormBlock, FieldType, Template, ActiveItem } from '@/types'
+import { FormField, FormBlock, FieldType, Template, ActiveItem, Subject } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { toast } from '@/hooks/use-toast'
 import { Toolbox } from '@/components/constructor/Toolbox'
+import { SubjectSelect } from '@/components/SubjectSelect'
+import { getSubjects } from '@/services/subjects'
 import { PropertiesPanel } from '@/components/constructor/PropertiesPanel'
 import { ConfigPanel } from '@/components/constructor/ConfigPanel'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -49,6 +44,12 @@ export default function Constructor() {
   const [activeItem, setActiveItem] = useState<ActiveItem>(null)
   const [activeTab, setActiveTab] = useState('toolbox')
   const [mainTab, setMainTab] = useState('canvas')
+
+  const [subjectsList, setSubjectsList] = useState<Subject[]>([])
+
+  useEffect(() => {
+    getSubjects().then(setSubjectsList).catch(console.error)
+  }, [])
 
   useEffect(() => {
     if (!editingTemplateId && templates.length > 0 && fields.length === 0) {
@@ -128,7 +129,13 @@ export default function Constructor() {
   }
 
   const handleSave = () => {
-    if (!templateName || blocks.length === 0) return toast({ title: 'Adicione pelo menos 1 bloco' })
+    if (!templateName || blocks.length === 0) {
+      return toast({ title: 'Nome e pelo menos 1 bloco são obrigatórios', variant: 'destructive' })
+    }
+    if (!subject) {
+      return toast({ title: 'O campo Assunto é obrigatório', variant: 'destructive' })
+    }
+
     const tmplData = {
       name: templateName,
       subject,
@@ -233,27 +240,9 @@ export default function Constructor() {
           </div>
           <div className="flex flex-col gap-2">
             <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Assunto
+              Assunto <span className="text-destructive">*</span>
             </label>
-            <Select value={subject} onValueChange={setSubject}>
-              <SelectTrigger className="h-10">
-                <SelectValue placeholder="Selecione um assunto" />
-              </SelectTrigger>
-              <SelectContent>
-                {[
-                  'Qualidade',
-                  'Segurança',
-                  'Manutenção',
-                  'Operações',
-                  'Logística',
-                  'Recursos Humanos',
-                ].map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {s}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SubjectSelect value={subject} onChange={setSubject} subjects={subjectsList} />
           </div>
         </div>
 

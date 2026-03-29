@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-29T13:09:50.371Z",
+  "generatedAt": "2026-03-29T13:22:43.736Z",
   "collections": [
     {
       "name": "users",
@@ -118,27 +118,20 @@
           "autodateTriggers": ["onCreate", "onUpdate"]
         },
         {
-          "name": "subject",
-          "type": "select",
-          "required": false,
-          "system": false,
-          "selectValues": [
-            "Qualidade",
-            "Segurança",
-            "Manutenção",
-            "Operações",
-            "Logística",
-            "Recursos Humanos"
-          ]
-        },
-        {
           "name": "attachments",
           "type": "file",
           "required": false,
           "system": false
+        },
+        {
+          "name": "subject",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "subjects"
         }
       ],
-      "indexes": []
+      "indexes": ["CREATE INDEX `idx_templates_subject` ON `templates` (subject)"]
     },
     {
       "name": "schedules",
@@ -335,6 +328,40 @@
           "name": "data",
           "type": "json",
           "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "subjects",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
           "system": false
         },
         {

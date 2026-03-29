@@ -68,11 +68,18 @@ export interface FormBlock {
   logicValue?: string
 }
 
+export interface Subject {
+  id: string
+  name: string
+  created: string
+  updated: string
+}
+
 export interface Template {
   id: string
   name: string
   description: string
-  subject?: string
+  subject: string
   attachments?: string[]
   blocks: FormBlock[]
   fields: FormField[]
