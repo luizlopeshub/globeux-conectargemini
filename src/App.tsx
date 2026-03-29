@@ -5,6 +5,7 @@ import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import Layout from './components/Layout'
 import useAppStore from '@/stores/useAppStore'
+import { toast } from '@/hooks/use-toast'
 
 const Index = lazy(() => import('./pages/Index'))
 const Constructor = lazy(() => import('./pages/Constructor'))
@@ -19,11 +20,34 @@ const Integrations = lazy(() => import('./pages/settings/Integrations'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 const Login = lazy(() => import('./pages/Login'))
 
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated } = useAppStore()
+const ProtectedRoute = ({
+  children,
+  allowedRoles,
+}: {
+  children: React.ReactNode
+  allowedRoles?: string[]
+}) => {
+  const { isAuthenticated, currentUser } = useAppStore()
   const location = useLocation()
+
   if (!isAuthenticated) return <Navigate to="/login" state={{ from: location }} replace />
+
+  if (allowedRoles && currentUser && !allowedRoles.includes(currentUser.role)) {
+    return <Unauthorized />
+  }
+
   return <>{children}</>
+}
+
+const Unauthorized = () => {
+  useEffect(() => {
+    toast({
+      title: 'Acesso Negado',
+      description: 'Você não tem permissão para acessar esta página.',
+      variant: 'destructive',
+    })
+  }, [])
+  return <Navigate to="/" replace />
 }
 
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
@@ -72,15 +96,58 @@ const App = () => (
             }
           >
             <Route path="/" element={<Index />} />
-            <Route path="/builder" element={<Constructor />} />
             <Route path="/execute/:id" element={<Executor />} />
             <Route path="/logs" element={<AuditLogs />} />
-            <Route path="/users" element={<Users />} />
             <Route path="/reports" element={<Reports />} />
-            <Route path="/master-data/config" element={<EntityConfig />} />
-            <Route path="/master-data/:slug" element={<DynamicEntityCrud />} />
-            <Route path="/settings/general" element={<GeneralSettings />} />
-            <Route path="/settings/integrations" element={<Integrations />} />
+
+            <Route
+              path="/builder"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <Constructor />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/users"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <Users />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/master-data/config"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <EntityConfig />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/master-data/:slug"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <DynamicEntityCrud />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings/general"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <GeneralSettings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings/integrations"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <Integrations />
+                </ProtectedRoute>
+              }
+            />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

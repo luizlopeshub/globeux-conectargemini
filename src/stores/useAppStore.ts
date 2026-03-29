@@ -126,18 +126,10 @@ export default function useAppStore() {
     fetchInitialData: async () => {
       if (!pb.authStore.isValid) return
       await withLoading(async () => {
-        const [
-          usersRes,
-          templatesRes,
-          schedulesRes,
-          tasksRes,
-          actionPlansRes,
-          responsesRes,
-          subjectsRes,
-          departmentsRes,
-          apiSettingsRes,
-        ] = await Promise.all([
-          pb.collection('users').getFullList(),
+        const currentUserRole = pb.authStore.record?.role || 'operator'
+        const isAdmin = currentUserRole === 'admin'
+
+        const queries: Promise<any>[] = [
           pb.collection('templates').getFullList(),
           pb.collection('schedules').getFullList(),
           pb.collection('tasks').getFullList(),
@@ -145,8 +137,26 @@ export default function useAppStore() {
           pb.collection('responses').getFullList({ expand: 'task_id,user_id' }),
           pb.collection('subjects').getFullList(),
           pb.collection('departments').getFullList(),
-          pb.collection('api_settings').getFullList(),
-        ])
+          pb.collection('users').getFullList(),
+        ]
+
+        if (isAdmin) {
+          queries.push(pb.collection('api_settings').getFullList())
+        } else {
+          queries.push(Promise.resolve([]))
+        }
+
+        const [
+          templatesRes,
+          schedulesRes,
+          tasksRes,
+          actionPlansRes,
+          responsesRes,
+          subjectsRes,
+          departmentsRes,
+          usersRes,
+          apiSettingsRes,
+        ] = await Promise.all(queries)
 
         const mappedAudits: Audit[] = responsesRes.map((r) => ({
           id: r.id,
@@ -183,6 +193,7 @@ export default function useAppStore() {
       await withLoading(async () => {
         const record = await pb.collection('users').create({
           ...u,
+          role: u.role || 'operator',
           password: 'securepassword123',
           passwordConfirm: 'securepassword123',
         })
