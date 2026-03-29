@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-29T14:06:26.783Z",
+  "generatedAt": "2026-03-29T14:17:28.548Z",
   "collections": [
     {
       "name": "users",
@@ -396,6 +396,70 @@
           "name": "name",
           "type": "text",
           "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "api_settings",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "webhook_url",
+          "type": "url",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "smtp_host",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "smtp_port",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "smtp_user",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "smtp_pass",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "smtp_encryption",
+          "type": "text",
+          "required": false,
           "system": false
         },
         {

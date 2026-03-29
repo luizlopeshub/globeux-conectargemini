@@ -138,26 +138,83 @@ export function PropertiesPanel({
         )}
 
         {activeField.type === 'lookup' && (
-          <div className="space-y-2">
-            <Label>Tipo de Entidade Restrita</Label>
-            <Select
-              value={activeField.lookupSource || 'any'}
-              onValueChange={(val) =>
-                handleUpdateField(activeField.id, { lookupSource: val === 'any' ? undefined : val })
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="any">Qualquer (Usuário escolhe na hora)</SelectItem>
-                {entityDefs.map((def) => (
-                  <SelectItem key={def.id} value={def.id}>
-                    {def.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="space-y-4 border rounded-md p-3 bg-slate-50">
+            <h4 className="font-medium text-sm text-primary">Configuração de Busca (Lookup)</h4>
+
+            <div className="space-y-2">
+              <Label>Origem dos Dados</Label>
+              <Select
+                value={activeField.dataSourceType || 'internal'}
+                onValueChange={(val: 'internal' | 'external_api') =>
+                  handleUpdateField(activeField.id, { dataSourceType: val })
+                }
+              >
+                <SelectTrigger className="bg-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="internal">Banco de Dados Interno</SelectItem>
+                  <SelectItem value="external_api">API Externa (Ex: Receita, Correios)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {(!activeField.dataSourceType || activeField.dataSourceType === 'internal') && (
+              <div className="space-y-2">
+                <Label>Tipo de Entidade Restrita</Label>
+                <Select
+                  value={activeField.lookupSource || 'any'}
+                  onValueChange={(val) =>
+                    handleUpdateField(activeField.id, {
+                      lookupSource: val === 'any' ? undefined : val,
+                    })
+                  }
+                >
+                  <SelectTrigger className="bg-white">
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="any">Qualquer (Usuário escolhe na hora)</SelectItem>
+                    {entityDefs.map((def) => (
+                      <SelectItem key={def.id} value={def.id}>
+                        {def.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {activeField.dataSourceType === 'external_api' && (
+              <>
+                <div className="space-y-2">
+                  <Label>URL do Endpoint (API)</Label>
+                  <Input
+                    className="bg-white"
+                    placeholder="https://api.exemplo.com/dados?q={query}"
+                    value={activeField.apiUrl || ''}
+                    onChange={(e) => handleUpdateField(activeField.id, { apiUrl: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Use <code>{'{query}'}</code> para injetar o texto digitado pelo usuário.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Mapeamento do JSON (Caminho para o Array)</Label>
+                  <Input
+                    className="bg-white"
+                    placeholder="Ex: data.results"
+                    value={activeField.apiMapping || ''}
+                    onChange={(e) =>
+                      handleUpdateField(activeField.id, { apiMapping: e.target.value })
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Deixe em branco se a API retornar um Array diretamente.
+                  </p>
+                </div>
+              </>
+            )}
           </div>
         )}
 

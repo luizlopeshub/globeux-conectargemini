@@ -26,6 +26,9 @@ interface Props {
   defaultEntityType?: string
   allowEntityChange?: boolean
   error?: boolean
+  dataSourceType?: 'internal' | 'external_api'
+  apiUrl?: string
+  apiMapping?: string
 }
 
 export function SmartLookup({
@@ -34,6 +37,9 @@ export function SmartLookup({
   defaultEntityType = '',
   allowEntityChange = true,
   error,
+  dataSourceType = 'internal',
+  apiUrl,
+  apiMapping,
 }: Props) {
   const { entityDefs, entityRecords } = useAppStore()
   const [entityType, setEntityType] = useState(defaultEntityType)
@@ -41,6 +47,7 @@ export function SmartLookup({
   const [loading, setLoading] = useState(false)
   const [results, setResults] = useState<any[]>([])
   const [open, setOpen] = useState(false)
+  const [externalValueName, setExternalValueName] = useState<string>('')
 
   useEffect(() => {
     if (defaultEntityType && !allowEntityChange) {
@@ -49,67 +56,117 @@ export function SmartLookup({
   }, [defaultEntityType, allowEntityChange])
 
   useEffect(() => {
-    if (search.length >= 3 && entityType) {
-      setLoading(true)
-      const timer = setTimeout(() => {
-        const filtered = entityRecords
-          .filter(
-            (r) =>
-              r.entityId === entityType &&
-              Object.values(r).some((val) =>
-                String(val).toLowerCase().includes(search.toLowerCase()),
-              ),
-          )
-          .slice(0, 50)
-        setResults(filtered)
-        setLoading(false)
-      }, 400)
-      return () => clearTimeout(timer)
+    if (search.length >= 3) {
+      if (dataSourceType === 'internal' && entityType) {
+        setLoading(true)
+        const timer = setTimeout(() => {
+          const filtered = entityRecords
+            .filter(
+              (r) =>
+                r.entityId === entityType &&
+                Object.values(r).some((val) =>
+                  String(val).toLowerCase().includes(search.toLowerCase()),
+                ),
+            )
+            .slice(0, 50)
+          setResults(filtered)
+          setLoading(false)
+        }, 400)
+        return () => clearTimeout(timer)
+      } else if (dataSourceType === 'external_api' && apiUrl) {
+        setLoading(true)
+        const timer = setTimeout(async () => {
+          try {
+            const url = apiUrl.replace('{query}', encodeURIComponent(search))
+            const response = await fetch(url)
+            const data = await response.json()
+
+            let items = data
+            if (apiMapping) {
+              const parts = apiMapping.split('.')
+              for (const part of parts) {
+                if (items && items[part]) {
+                  items = items[part]
+                }
+              }
+            }
+
+            if (Array.isArray(items)) {
+              setResults(
+                items.map((it: any, idx) => ({
+                  id: it.id || it.code || String(idx),
+                  name: it.name || it.title || it.description || Object.values(it)[0] || 'Item',
+                })),
+              )
+            } else {
+              setResults([])
+            }
+          } catch (e) {
+            console.error('External API lookup failed', e)
+            setResults([])
+          } finally {
+            setLoading(false)
+          }
+        }, 600)
+        return () => clearTimeout(timer)
+      }
     } else {
       setResults([])
       setLoading(false)
     }
-  }, [search, entityType, entityRecords])
+  }, [search, entityType, entityRecords, dataSourceType, apiUrl, apiMapping])
 
   const def = entityDefs.find((d) => d.id === entityType)
 
   const getName = (item: any) => {
+    if (dataSourceType === 'external_api') return item.name
     const firstField = def?.fields[0]?.id || 'id'
     return item[firstField]
   }
 
   const getMeta = (item: any) => {
+    if (dataSourceType === 'external_api') return item.id
     if (entityType === 'clients') return item.cnpj || ''
     if (entityType === 'products') return item.lote || item.sku || ''
     const secondField = def?.fields[1]?.id
     return secondField ? item[secondField] : ''
   }
 
-  const selectedItem = value ? entityRecords.find((r) => r.id === value) : null
+  const selectedItem =
+    value && dataSourceType === 'internal' ? entityRecords.find((r) => r.id === value) : null
+
+  const displayValue =
+    dataSourceType === 'external_api' && value
+      ? externalValueName || value
+      : selectedItem
+        ? getName(selectedItem)
+        : `Pesquisar ${dataSourceType === 'external_api' ? 'API Externa' : def?.name || 'Registro'}...`
 
   return (
     <div className="flex flex-col gap-2 w-full">
-      <Select
-        value={entityType}
-        onValueChange={(val) => {
-          setEntityType(val)
-          onChange('')
-          setSearch('')
-          setResults([])
-        }}
-        disabled={!allowEntityChange}
-      >
-        <SelectTrigger className={cn('bg-white', error && 'border-destructive')}>
-          <SelectValue placeholder="Tipo de Entidade" />
-        </SelectTrigger>
-        <SelectContent>
-          {entityDefs.map((d) => (
-            <SelectItem key={d.id} value={d.id}>
-              {d.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      {dataSourceType === 'internal' && (
+        <Select
+          value={entityType}
+          onValueChange={(val) => {
+            setEntityType(val)
+            onChange('')
+            setSearch('')
+            setResults([])
+          }}
+          disabled={!allowEntityChange}
+        >
+          <SelectTrigger className={cn('bg-white', error && 'border-destructive')}>
+            <SelectValue placeholder="Tipo de Entidade" />
+          </SelectTrigger>
+          <SelectContent>
+            {entityDefs.map((d) => (
+              <SelectItem key={d.id} value={d.id}>
+                {d.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
 
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
@@ -117,16 +174,14 @@ export function SmartLookup({
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            disabled={!entityType}
+            disabled={dataSourceType === 'internal' && !entityType}
             className={cn(
               'w-full justify-start h-10 bg-white font-normal',
               error && 'border-destructive',
             )}
           >
             <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-            <span className="truncate flex-1 text-left">
-              {selectedItem ? getName(selectedItem) : `Pesquisar ${def?.name || 'Registro'}...`}
-            </span>
+            <span className="truncate flex-1 text-left">{displayValue}</span>
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
@@ -158,6 +213,9 @@ export function SmartLookup({
                       value={item.id}
                       onSelect={() => {
                         onChange(item.id)
+                        if (dataSourceType === 'external_api') {
+                          setExternalValueName(getName(item))
+                        }
                         setOpen(false)
                         setSearch('')
                       }}

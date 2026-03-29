@@ -5,6 +5,14 @@ import useAppStore from '@/stores/useAppStore'
 import { getDepartments } from '@/services/departments'
 import { getSubjects } from '@/services/subjects'
 import type { Department, Subject } from '@/types'
+import { useRealtime } from '@/hooks/use-realtime'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 interface Props {
   subjectId?: string
@@ -19,29 +27,42 @@ export function ConfigPanel({ subjectId, assignedUsers, assignedDepartments, onC
   const [subjects, setSubjects] = useState<Subject[]>([])
   const operators = users.filter((u) => u.role === 'operator')
 
-  useEffect(() => {
+  const loadData = () => {
     getDepartments().then(setDepartments).catch(console.error)
     getSubjects().then(setSubjects).catch(console.error)
+  }
+
+  useEffect(() => {
+    loadData()
   }, [])
+
+  useRealtime('subjects', () => {
+    loadData()
+  })
+
+  useRealtime('departments', () => {
+    loadData()
+  })
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 pb-6">
       <div className="space-y-2 pb-4">
         <h3 className="font-medium text-sm">Assunto (Obrigatório)</h3>
-        <select
+        <Select
           value={subjectId || ''}
-          onChange={(e) => onChange(assignedUsers, assignedDepartments, e.target.value)}
-          className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+          onValueChange={(val) => onChange(assignedUsers, assignedDepartments, val)}
         >
-          <option value="" disabled>
-            Selecione o assunto
-          </option>
-          {subjects.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="w-full bg-white">
+            <SelectValue placeholder="Selecione o assunto" />
+          </SelectTrigger>
+          <SelectContent>
+            {subjects.map((s) => (
+              <SelectItem key={s.id} value={s.id}>
+                {s.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="space-y-2 border-t pt-4">
