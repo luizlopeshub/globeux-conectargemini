@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react'
-import {
+import pb from '@/lib/pocketbase/client'
+import { toast } from '@/hooks/use-toast'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
+import type {
   Role,
   Template,
   Audit,
@@ -9,7 +12,10 @@ import {
   Schedule,
   Task,
   ActionPlan,
+  Subject,
+  Department,
 } from '@/types'
+import type { ApiSettings } from '@/services/api_settings'
 
 interface DraftState {
   answers: Record<string, any>
@@ -17,6 +23,7 @@ interface DraftState {
 }
 
 interface AppState {
+  isLoading: boolean
   users: User[]
   currentUser: User | null
   templates: Template[]
@@ -27,181 +34,48 @@ interface AppState {
   schedules: Schedule[]
   tasks: Task[]
   actionPlans: ActionPlan[]
+  subjects: Subject[]
+  departments: Department[]
+  apiSettings: ApiSettings | null
 }
 
-const mockUsers: User[] = [
-  {
-    id: 'u1',
-    name: 'Admin Master',
-    email: 'admin@logiaudit.com',
-    role: 'admin',
-    avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=female&seed=1',
-  },
-  {
-    id: 'u2',
-    name: 'Supervisora Ana',
-    email: 'ana@logiaudit.com',
-    role: 'supervisor',
-    department: 'Expedição',
-    avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=female&seed=2',
-  },
-  {
-    id: 'u3',
-    name: 'João (Recebimento)',
-    email: 'joao@logiaudit.com',
-    role: 'operator',
-    department: 'Recebimento',
-    avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=3',
-  },
-]
-
-const mockEntityDefs: EntityDef[] = [
-  {
-    id: 'clients',
-    name: 'Clientes',
-    slug: 'clientes',
-    fields: [
-      { id: 'name', name: 'Nome do Cliente', type: 'text' },
-      { id: 'cnpj', name: 'CNPJ / Documento', type: 'text' },
-      { id: 'address', name: 'Endereço Completo', type: 'text' },
-    ],
-  },
-  {
-    id: 'carriers',
-    name: 'Transportadoras',
-    slug: 'transportadoras',
-    fields: [
-      { id: 'name', name: 'Razão Social', type: 'text' },
-      { id: 'fleetType', name: 'Tipo de Frota', type: 'text' },
-      { id: 'contact', name: 'Contato', type: 'text' },
-    ],
-  },
-]
-
-const mockEntityRecords: EntityRecord[] = [
-  {
-    id: 'c1',
-    entityId: 'clients',
-    name: 'Logística Alfa',
-    cnpj: '12.345.678/0001-90',
-    address: 'Av. Paulista, 1000',
-  },
-  {
-    id: 't1',
-    entityId: 'carriers',
-    name: 'Expresso Rápido',
-    fleetType: 'Caminhão Baú',
-    contact: 'contato@expresso.com',
-  },
-]
-
-const mockTemplates: Template[] = [
-  {
-    id: 't1',
-    name: 'Expedição de Carga',
-    description: 'Verificação de transportadora e cliente.',
-    subject: 'Logística',
-    attachments: [],
-    createdAt: '2023-10-02T10:30:00Z',
-    blocks: [
-      { id: 'b1', name: 'Bloco 1: Cadastro' },
-      { id: 'b2', name: 'Bloco 2: Verificação de Carga' },
-    ],
-    fields: [
-      {
-        id: 'f1',
-        blockId: 'b1',
-        type: 'lookup',
-        label: 'Cliente Destino',
-        lookupSource: 'clients',
-        required: true,
-      },
-      {
-        id: 'f2',
-        blockId: 'b1',
-        type: 'lookup',
-        label: 'Transportadora',
-        lookupSource: 'carriers',
-        required: true,
-      },
-      {
-        id: 'f3',
-        blockId: 'b2',
-        type: 'radio',
-        label: 'Condição da Carga',
-        options: 'Perfeita, Avariada',
-        required: true,
-      },
-    ],
-  },
-]
-
-const mockAudits: Audit[] = [
-  {
-    id: 'a1',
-    templateId: 't1',
-    templateName: 'Expedição de Carga',
-    operatorId: 'u3',
-    operatorName: 'João (Recebimento)',
-    operatorAvatar: mockUsers[2].avatar,
-    timestamp: new Date().toISOString(),
-    location: '-23.5505, -46.6333',
-    status: 'Concluído',
-    approvalStatus: 'Pendente',
-    answers: { f1: 'c1', f2: 't1', f3: 'Perfeita' },
-  },
-]
-
-const mockSchedules: Schedule[] = [
-  {
-    id: 's1',
-    recurrence: 'weekly',
-    template_id: 't1',
-    assigned_to: 'u3',
-    created: new Date().toISOString(),
-    updated: new Date().toISOString(),
-  },
-]
-
-const mockTasks: Task[] = [
-  {
-    id: 'tsk1',
-    status: 'pending',
-    due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    user_id: 'u3',
-    title: 'Verificar extintores',
-    description: 'Realizar checagem semanal dos extintores no armazém',
-    created: new Date().toISOString(),
-    updated: new Date().toISOString(),
-  },
-]
-
-const mockActionPlans: ActionPlan[] = [
-  {
-    id: 'ap1',
-    field_id: 'f3',
-    responsible_id: 'u2',
-    status: 'open',
-    description: 'Corrigir avarias encontradas na carga',
-    created: new Date().toISOString(),
-    updated: new Date().toISOString(),
-  },
-]
-
 let globalState: AppState = {
-  users: mockUsers,
-  currentUser: mockUsers[0],
-  templates: mockTemplates,
-  audits: mockAudits,
+  isLoading: false,
+  users: [],
+  currentUser: null,
+  templates: [],
+  audits: [],
   drafts: {},
-  entityDefs: mockEntityDefs,
-  entityRecords: mockEntityRecords,
-  schedules: mockSchedules,
-  tasks: mockTasks,
-  actionPlans: mockActionPlans,
+  entityDefs: [],
+  entityRecords: [],
+  schedules: [],
+  tasks: [],
+  actionPlans: [],
+  subjects: [],
+  departments: [],
+  apiSettings: null,
 }
 
 let listeners: Array<(state: AppState) => void> = []
+
+const update = (partial: Partial<AppState>) => {
+  globalState = { ...globalState, ...partial }
+  listeners.forEach((l) => l(globalState))
+}
+
+const withLoading = async (action: () => Promise<void>, successMsg?: string) => {
+  update({ isLoading: true })
+  try {
+    await action()
+    if (successMsg) toast({ title: 'Sucesso', description: successMsg })
+  } catch (err: any) {
+    console.error(err)
+    toast({ title: 'Erro', description: getErrorMessage(err), variant: 'destructive' })
+    throw err
+  } finally {
+    update({ isLoading: false })
+  }
+}
 
 export default function useAppStore() {
   const [state, setState] = useState<AppState>(globalState)
@@ -213,44 +87,242 @@ export default function useAppStore() {
     }
   }, [])
 
-  const update = (partial: Partial<AppState>) => {
-    globalState = { ...globalState, ...partial }
-    listeners.forEach((l) => l(globalState))
-  }
-
   return {
     ...state,
-    setCurrentUser: (user: User) => update({ currentUser: user }),
-    addTemplate: (t: Template) => update({ templates: [...globalState.templates, t] }),
-    updateTemplate: (t: Template) =>
-      update({ templates: globalState.templates.map((x) => (x.id === t.id ? t : x)) }),
+    setCurrentUser: (user: User | null) => update({ currentUser: user }),
     saveDraft: (tid: string, data: DraftState) =>
       update({ drafts: { ...globalState.drafts, [tid]: data } }),
-    submitAudit: (a: Audit) => {
-      const nd = { ...globalState.drafts }
-      delete nd[a.templateId]
-      update({ audits: [a, ...globalState.audits], drafts: nd })
-    },
-    approveAudit: (id: string, s: 'Aprovado' | 'Rejeitado', approver: string) => {
-      update({
-        audits: globalState.audits.map((a) =>
-          a.id === id ? { ...a, approvalStatus: s, approverName: approver } : a,
-        ),
+
+    fetchInitialData: async () => {
+      await withLoading(async () => {
+        const [
+          usersRes,
+          templatesRes,
+          schedulesRes,
+          tasksRes,
+          actionPlansRes,
+          responsesRes,
+          subjectsRes,
+          departmentsRes,
+          apiSettingsRes,
+        ] = await Promise.all([
+          pb.collection('users').getFullList(),
+          pb.collection('templates').getFullList(),
+          pb.collection('schedules').getFullList(),
+          pb.collection('tasks').getFullList(),
+          pb.collection('action_plans').getFullList(),
+          pb.collection('responses').getFullList({ expand: 'task_id,user_id' }),
+          pb.collection('subjects').getFullList(),
+          pb.collection('departments').getFullList(),
+          pb.collection('api_settings').getFullList(),
+        ])
+
+        const mappedAudits: Audit[] = responsesRes.map((r) => ({
+          id: r.id,
+          templateId: r.data?.templateId || '',
+          templateName: r.data?.templateName || 'Checklist',
+          operatorId: r.user_id,
+          operatorName: r.expand?.user_id?.name || 'Desconhecido',
+          operatorAvatar: r.expand?.user_id?.avatar
+            ? pb.files.getUrl(r.expand.user_id, r.expand.user_id.avatar)
+            : undefined,
+          timestamp: r.data?.timestamp || r.created,
+          location: r.data?.location || '',
+          status: r.status,
+          approvalStatus: r.data?.approvalStatus || 'Pendente',
+          answers: r.data?.answers || {},
+        }))
+
+        update({
+          users: usersRes as any,
+          templates: templatesRes as any,
+          schedules: schedulesRes as any,
+          tasks: tasksRes as any,
+          actionPlans: actionPlansRes as any,
+          audits: mappedAudits,
+          subjects: subjectsRes as any,
+          departments: departmentsRes as any,
+          apiSettings: (apiSettingsRes[0] as any) || null,
+          currentUser: (pb.authStore.record as any) || null,
+        })
       })
     },
-    addSchedule: (s: Schedule) => update({ schedules: [...globalState.schedules, s] }),
-    updateSchedule: (s: Schedule) =>
-      update({ schedules: globalState.schedules.map((x) => (x.id === s.id ? s : x)) }),
-    deleteSchedule: (id: string) =>
-      update({ schedules: globalState.schedules.filter((x) => x.id !== id) }),
-    addTask: (t: Task) => update({ tasks: [...globalState.tasks, t] }),
-    updateTask: (t: Task) =>
-      update({ tasks: globalState.tasks.map((x) => (x.id === t.id ? t : x)) }),
-    deleteTask: (id: string) => update({ tasks: globalState.tasks.filter((x) => x.id !== id) }),
-    addActionPlan: (ap: ActionPlan) => update({ actionPlans: [...globalState.actionPlans, ap] }),
-    updateActionPlan: (ap: ActionPlan) =>
-      update({ actionPlans: globalState.actionPlans.map((x) => (x.id === ap.id ? ap : x)) }),
-    deleteActionPlan: (id: string) =>
-      update({ actionPlans: globalState.actionPlans.filter((x) => x.id !== id) }),
+
+    addUser: async (u: Partial<User>) => {
+      await withLoading(async () => {
+        const record = await pb.collection('users').create({
+          ...u,
+          password: 'securepassword123',
+          passwordConfirm: 'securepassword123',
+        })
+        update({ users: [...globalState.users, record as any] })
+      }, 'Usuário adicionado com sucesso!')
+    },
+
+    addTemplate: async (t: Partial<Template>) => {
+      await withLoading(async () => {
+        const record = await pb.collection('templates').create(t)
+        update({ templates: [...globalState.templates, record as any] })
+      }, 'Template criado com sucesso!')
+    },
+    updateTemplate: async (t: Template) => {
+      await withLoading(async () => {
+        const record = await pb.collection('templates').update(t.id, t)
+        update({
+          templates: globalState.templates.map((x) => (x.id === t.id ? (record as any) : x)),
+        })
+      }, 'Template atualizado!')
+    },
+    deleteTemplate: async (id: string) => {
+      await withLoading(async () => {
+        await pb.collection('templates').delete(id)
+        update({ templates: globalState.templates.filter((x) => x.id !== id) })
+      }, 'Template removido!')
+    },
+
+    submitAudit: async (a: Audit) => {
+      await withLoading(async () => {
+        const task = await pb.collection('tasks').create({
+          title: `Auditoria: ${a.templateName}`,
+          status: 'completed',
+          user_id: a.operatorId,
+          due_date: new Date().toISOString(),
+        })
+        const response = await pb.collection('responses').create({
+          task_id: task.id,
+          user_id: a.operatorId,
+          status: a.status,
+          data: {
+            templateId: a.templateId,
+            templateName: a.templateName,
+            location: a.location,
+            answers: a.answers,
+            approvalStatus: a.approvalStatus,
+            timestamp: a.timestamp,
+          },
+        })
+        const mappedAudit = { ...a, id: response.id }
+        const nd = { ...globalState.drafts }
+        delete nd[a.templateId]
+        update({
+          audits: [mappedAudit, ...globalState.audits],
+          drafts: nd,
+          tasks: [...globalState.tasks, task as any],
+        })
+      }, 'Checklist enviado com sucesso!')
+    },
+    approveAudit: async (id: string, s: 'Aprovado' | 'Rejeitado', approver: string) => {
+      await withLoading(async () => {
+        const record = await pb.collection('responses').getOne(id)
+        const newData = { ...record.data, approvalStatus: s, approverName: approver }
+        await pb.collection('responses').update(id, { data: newData })
+        update({
+          audits: globalState.audits.map((a) =>
+            a.id === id ? { ...a, approvalStatus: s, approverName: approver } : a,
+          ),
+        })
+      }, `Checklist ${s.toLowerCase()}!`)
+    },
+
+    addSubject: async (name: string) => {
+      await withLoading(async () => {
+        const record = await pb.collection('subjects').create({ name })
+        update({ subjects: [...globalState.subjects, record as any] })
+      }, 'Assunto criado com sucesso!')
+    },
+    updateSubject: async (id: string, name: string) => {
+      await withLoading(async () => {
+        const record = await pb.collection('subjects').update(id, { name })
+        update({ subjects: globalState.subjects.map((x) => (x.id === id ? (record as any) : x)) })
+      }, 'Assunto atualizado!')
+    },
+    deleteSubject: async (id: string) => {
+      await withLoading(async () => {
+        await pb.collection('subjects').delete(id)
+        update({ subjects: globalState.subjects.filter((x) => x.id !== id) })
+      }, 'Assunto removido!')
+    },
+
+    addDepartment: async (name: string) => {
+      await withLoading(async () => {
+        const record = await pb.collection('departments').create({ name })
+        update({ departments: [...globalState.departments, record as any] })
+      }, 'Departamento criado com sucesso!')
+    },
+    updateDepartment: async (id: string, name: string) => {
+      await withLoading(async () => {
+        const record = await pb.collection('departments').update(id, { name })
+        update({
+          departments: globalState.departments.map((x) => (x.id === id ? (record as any) : x)),
+        })
+      }, 'Departamento atualizado!')
+    },
+    deleteDepartment: async (id: string) => {
+      await withLoading(async () => {
+        await pb.collection('departments').delete(id)
+        update({ departments: globalState.departments.filter((x) => x.id !== id) })
+      }, 'Departamento removido!')
+    },
+
+    addSchedule: async (s: Partial<Schedule>) => {
+      await withLoading(async () => {
+        const record = await pb.collection('schedules').create(s)
+        update({ schedules: [...globalState.schedules, record as any] })
+      }, 'Agendamento criado com sucesso!')
+    },
+    updateSchedule: async (s: Schedule) => {
+      await withLoading(async () => {
+        const record = await pb.collection('schedules').update(s.id, s)
+        update({
+          schedules: globalState.schedules.map((x) => (x.id === s.id ? (record as any) : x)),
+        })
+      }, 'Agendamento atualizado!')
+    },
+    deleteSchedule: async (id: string) => {
+      await withLoading(async () => {
+        await pb.collection('schedules').delete(id)
+        update({ schedules: globalState.schedules.filter((x) => x.id !== id) })
+      }, 'Agendamento removido!')
+    },
+
+    addTask: async (t: Partial<Task>) => {
+      await withLoading(async () => {
+        const record = await pb.collection('tasks').create(t)
+        update({ tasks: [...globalState.tasks, record as any] })
+      }, 'Tarefa criada com sucesso!')
+    },
+    updateTask: async (t: Task) => {
+      await withLoading(async () => {
+        const record = await pb.collection('tasks').update(t.id, t)
+        update({ tasks: globalState.tasks.map((x) => (x.id === t.id ? (record as any) : x)) })
+      }, 'Tarefa atualizada!')
+    },
+    deleteTask: async (id: string) => {
+      await withLoading(async () => {
+        await pb.collection('tasks').delete(id)
+        update({ tasks: globalState.tasks.filter((x) => x.id !== id) })
+      }, 'Tarefa removida!')
+    },
+
+    addActionPlan: async (ap: Partial<ActionPlan>) => {
+      await withLoading(async () => {
+        const record = await pb.collection('action_plans').create(ap)
+        update({ actionPlans: [...globalState.actionPlans, record as any] })
+      }, 'Plano de ação criado com sucesso!')
+    },
+    updateActionPlan: async (ap: ActionPlan) => {
+      await withLoading(async () => {
+        const record = await pb.collection('action_plans').update(ap.id, ap)
+        update({
+          actionPlans: globalState.actionPlans.map((x) => (x.id === ap.id ? (record as any) : x)),
+        })
+      }, 'Plano de ação atualizado!')
+    },
+    deleteActionPlan: async (id: string) => {
+      await withLoading(async () => {
+        await pb.collection('action_plans').delete(id)
+        update({ actionPlans: globalState.actionPlans.filter((x) => x.id !== id) })
+      }, 'Plano de ação removido!')
+    },
   }
 }

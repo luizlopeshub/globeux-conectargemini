@@ -1,11 +1,6 @@
-import { useState, useEffect } from 'react'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import useAppStore from '@/stores/useAppStore'
-import { getDepartments } from '@/services/departments'
-import { getSubjects } from '@/services/subjects'
-import type { Department, Subject } from '@/types'
-import { useRealtime } from '@/hooks/use-realtime'
 import {
   Select,
   SelectContent,
@@ -22,27 +17,8 @@ interface Props {
 }
 
 export function ConfigPanel({ subjectId, assignedUsers, assignedDepartments, onChange }: Props) {
-  const { users } = useAppStore()
-  const [departments, setDepartments] = useState<Department[]>([])
-  const [subjects, setSubjects] = useState<Subject[]>([])
+  const { users, departments, subjects } = useAppStore()
   const operators = users.filter((u) => u.role === 'operator')
-
-  const loadData = () => {
-    getDepartments().then(setDepartments).catch(console.error)
-    getSubjects().then(setSubjects).catch(console.error)
-  }
-
-  useEffect(() => {
-    loadData()
-  }, [])
-
-  useRealtime('subjects', () => {
-    loadData()
-  })
-
-  useRealtime('departments', () => {
-    loadData()
-  })
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 pb-6">
