@@ -65,10 +65,10 @@ const update = (partial: Partial<AppState>) => {
   listeners.forEach((l) => l(globalState))
 }
 
-pb.authStore.onChange((token, model) => {
+pb.authStore.onChange((token, record) => {
   update({
     isAuthenticated: pb.authStore.isValid,
-    currentUser: model as any,
+    currentUser: record as any,
   })
 })
 
@@ -137,12 +137,13 @@ export default function useAppStore() {
           pb.collection('responses').getFullList({ expand: 'task_id,user_id' }),
           pb.collection('subjects').getFullList(),
           pb.collection('departments').getFullList(),
-          pb.collection('users').getFullList(),
         ]
 
         if (isAdmin) {
+          queries.push(pb.collection('users').getFullList())
           queries.push(pb.collection('api_settings').getFullList())
         } else {
+          queries.push(Promise.resolve(pb.authStore.record ? [pb.authStore.record] : []))
           queries.push(Promise.resolve([]))
         }
 

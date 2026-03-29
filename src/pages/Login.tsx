@@ -13,7 +13,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import useAppStore from '@/stores/useAppStore'
 import { Package } from 'lucide-react'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -51,15 +50,13 @@ export default function Login() {
           </CardHeader>
           <form onSubmit={handleLogin}>
             <CardContent className="space-y-4">
-              <Alert className="bg-primary/5 text-primary border-primary/20">
-                <AlertDescription>
-                  <strong>Credenciais de acesso:</strong>
-                  <br />
-                  Email: admin@logiaudit.com
-                  <br />
-                  Senha: admin123456
-                </AlertDescription>
-              </Alert>
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm text-primary">
+                <strong>Credenciais de acesso:</strong>
+                <br />
+                Email: admin@logiaudit.com
+                <br />
+                Senha: admin123456
+              </div>
 
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
