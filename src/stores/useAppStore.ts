@@ -100,6 +100,8 @@ const mockTemplates: Template[] = [
     id: 't1',
     name: 'Expedição de Carga',
     description: 'Verificação de transportadora e cliente.',
+    subject: 'Logística',
+    attachments: [],
     createdAt: '2023-10-02T10:30:00Z',
     blocks: [
       { id: 'b1', name: 'Bloco 1: Cadastro' },

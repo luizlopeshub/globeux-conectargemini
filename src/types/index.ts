@@ -72,6 +72,8 @@ export interface Template {
   id: string
   name: string
   description: string
+  subject?: string
+  attachments?: string[]
   blocks: FormBlock[]
   fields: FormField[]
   createdAt: string

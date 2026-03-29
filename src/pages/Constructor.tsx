@@ -5,6 +5,14 @@ import { FormField, FormBlock, FieldType, Template, ActiveItem } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { toast } from '@/hooks/use-toast'
 import { Toolbox } from '@/components/constructor/Toolbox'
 import { PropertiesPanel } from '@/components/constructor/PropertiesPanel'
@@ -20,16 +28,24 @@ import {
   Layers,
   ChevronUp,
   ChevronDown,
+  Paperclip,
+  X,
 } from 'lucide-react'
 
 export default function Constructor() {
   const { templates, addTemplate, updateTemplate, currentUser } = useAppStore()
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null)
+
   const [templateName, setTemplateName] = useState('Novo Checklist')
+  const [subject, setSubject] = useState('')
+  const [description, setDescription] = useState('')
+  const [attachments, setAttachments] = useState<string[]>([])
+
   const [blocks, setBlocks] = useState<FormBlock[]>([])
   const [fields, setFields] = useState<FormField[]>([])
   const [assignedUsers, setAssignedUsers] = useState<string[]>([])
   const [assignedDepartments, setAssignedDepartments] = useState<string[]>([])
+
   const [activeItem, setActiveItem] = useState<ActiveItem>(null)
   const [activeTab, setActiveTab] = useState('toolbox')
   const [mainTab, setMainTab] = useState('canvas')
@@ -52,6 +68,10 @@ export default function Constructor() {
   const loadTemplate = (t: Template) => {
     setEditingTemplateId(t.id)
     setTemplateName(t.name)
+    setSubject(t.subject || '')
+    setDescription(t.description || '')
+    setAttachments(t.attachments || [])
+
     let loadedBlocks = t.blocks || []
     let loadedFields = t.fields || []
     if (loadedBlocks.length === 0) {
@@ -70,6 +90,9 @@ export default function Constructor() {
   const createNewTemplate = () => {
     setEditingTemplateId(null)
     setTemplateName('Novo Checklist')
+    setSubject('')
+    setDescription('')
+    setAttachments([])
     setBlocks([{ id: `b_${generateId()}`, name: 'Bloco 1: Cadastro' }])
     setFields([])
     setActiveItem(null)
@@ -106,14 +129,23 @@ export default function Constructor() {
 
   const handleSave = () => {
     if (!templateName || blocks.length === 0) return toast({ title: 'Adicione pelo menos 1 bloco' })
-    const tmplData = { name: templateName, blocks, fields, assignedUsers, assignedDepartments }
+    const tmplData = {
+      name: templateName,
+      subject,
+      description,
+      attachments,
+      blocks,
+      fields,
+      assignedUsers,
+      assignedDepartments,
+    }
+
     if (editingTemplateId) {
       updateTemplate({ ...templates.find((t) => t.id === editingTemplateId)!, ...tmplData })
       toast({ title: 'Template atualizado!' })
     } else {
       const newTemplate: Template = {
         id: `tmpl_${generateId()}`,
-        description: 'Gerado pelo construtor.',
         createdAt: new Date().toISOString(),
         ...tmplData,
       }
@@ -133,6 +165,19 @@ export default function Constructor() {
     const arr = [...list]
     ;[arr[idx], arr[idx + dir]] = [arr[idx + dir], arr[idx]]
     setList(arr)
+  }
+
+  const handleFileAttach = () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.multiple = true
+    input.accept = 'image/*,application/pdf'
+    input.onchange = (e) => {
+      const selectedFiles = Array.from((e.target as HTMLInputElement).files || [])
+      const newFiles = selectedFiles.map((f) => f.name)
+      setAttachments((prev) => [...prev, ...newFiles])
+    }
+    input.click()
   }
 
   return (
@@ -173,16 +218,87 @@ export default function Constructor() {
       </div>
 
       {/* 2. Checklist Identity */}
-      <div className="bg-card p-4 rounded-md shadow-sm border shrink-0 flex flex-col gap-2">
-        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          Nome do Checklist
-        </label>
-        <Input
-          value={templateName}
-          onChange={(e) => setTemplateName(e.target.value)}
-          className="max-w-2xl font-bold text-xl border-muted shadow-none h-12"
-          placeholder="Ex: Expedição de carga"
-        />
+      <div className="bg-card p-5 rounded-md shadow-sm border shrink-0 flex flex-col gap-4 overflow-y-auto max-h-[300px]">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Nome do Checklist
+            </label>
+            <Input
+              value={templateName}
+              onChange={(e) => setTemplateName(e.target.value)}
+              className="font-bold text-lg h-10"
+              placeholder="Ex: Expedição de carga"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Assunto
+            </label>
+            <Select value={subject} onValueChange={setSubject}>
+              <SelectTrigger className="h-10">
+                <SelectValue placeholder="Selecione um assunto" />
+              </SelectTrigger>
+              <SelectContent>
+                {[
+                  'Qualidade',
+                  'Segurança',
+                  'Manutenção',
+                  'Operações',
+                  'Logística',
+                  'Recursos Humanos',
+                ].map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {s}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            Descrição
+          </label>
+          <Textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Explique a função deste checklist..."
+            className="resize-none min-h-[80px]"
+          />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            Anexos
+          </label>
+          <div className="flex items-center gap-4 flex-wrap">
+            <Button variant="outline" onClick={handleFileAttach} className="gap-2 shrink-0">
+              <Paperclip className="h-4 w-4" /> Incluir Anexo
+            </Button>
+            {attachments.length > 0 && (
+              <div className="flex gap-2 flex-wrap">
+                {attachments.map((file, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-2 bg-muted px-3 py-1.5 rounded-md text-sm border shadow-sm"
+                  >
+                    <span className="truncate max-w-[200px]">{file}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-4 w-4 rounded-full text-muted-foreground hover:text-destructive shrink-0"
+                      onClick={() => setAttachments(attachments.filter((_, idx) => idx !== i))}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* 3. Configuration Toolbar & Content Area */}
