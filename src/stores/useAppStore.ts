@@ -24,6 +24,7 @@ interface DraftState {
 
 interface AppState {
   isLoading: boolean
+  isAuthenticated: boolean
   users: User[]
   currentUser: User | null
   templates: Template[]
@@ -41,8 +42,9 @@ interface AppState {
 
 let globalState: AppState = {
   isLoading: false,
+  isAuthenticated: pb.authStore.isValid,
   users: [],
-  currentUser: null,
+  currentUser: (pb.authStore.record as any) || null,
   templates: [],
   audits: [],
   drafts: {},
@@ -62,6 +64,13 @@ const update = (partial: Partial<AppState>) => {
   globalState = { ...globalState, ...partial }
   listeners.forEach((l) => l(globalState))
 }
+
+pb.authStore.onChange((token, model) => {
+  update({
+    isAuthenticated: pb.authStore.isValid,
+    currentUser: model as any,
+  })
+})
 
 const withLoading = async (action: () => Promise<void>, successMsg?: string) => {
   update({ isLoading: true })
@@ -93,7 +102,29 @@ export default function useAppStore() {
     saveDraft: (tid: string, data: DraftState) =>
       update({ drafts: { ...globalState.drafts, [tid]: data } }),
 
+    login: async (email: string, pass: string) => {
+      await withLoading(async () => {
+        const authData = await pb.collection('users').authWithPassword(email, pass)
+        update({ currentUser: authData.record as any, isAuthenticated: true })
+      }, 'Login efetuado com sucesso!')
+    },
+    logout: () => {
+      pb.authStore.clear()
+      update({
+        currentUser: null,
+        isAuthenticated: false,
+        audits: [],
+        templates: [],
+        schedules: [],
+        tasks: [],
+        actionPlans: [],
+        subjects: [],
+        departments: [],
+      })
+    },
+
     fetchInitialData: async () => {
+      if (!pb.authStore.isValid) return
       await withLoading(async () => {
         const [
           usersRes,

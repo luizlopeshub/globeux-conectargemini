@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect } from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -17,6 +17,20 @@ const DynamicEntityCrud = lazy(() => import('./pages/master-data/DynamicEntityCr
 const GeneralSettings = lazy(() => import('./pages/settings/GeneralSettings'))
 const Integrations = lazy(() => import('./pages/settings/Integrations'))
 const NotFound = lazy(() => import('./pages/NotFound'))
+const Login = lazy(() => import('./pages/Login'))
+
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated } = useAppStore()
+  const location = useLocation()
+  if (!isAuthenticated) return <Navigate to="/login" state={{ from: location }} replace />
+  return <>{children}</>
+}
+
+const PublicRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated } = useAppStore()
+  if (isAuthenticated) return <Navigate to="/" replace />
+  return <>{children}</>
+}
 
 const PageLoader = () => (
   <div className="flex h-[50vh] items-center justify-center">
@@ -25,10 +39,12 @@ const PageLoader = () => (
 )
 
 const AppHydrator = () => {
-  const { fetchInitialData } = useAppStore()
+  const { fetchInitialData, isAuthenticated } = useAppStore()
   useEffect(() => {
-    fetchInitialData()
-  }, [])
+    if (isAuthenticated) {
+      fetchInitialData()
+    }
+  }, [isAuthenticated])
   return null
 }
 
@@ -40,7 +56,21 @@ const App = () => (
       <Sonner />
       <Suspense fallback={<PageLoader />}>
         <Routes>
-          <Route element={<Layout />}>
+          <Route
+            path="/login"
+            element={
+              <PublicRoute>
+                <Login />
+              </PublicRoute>
+            }
+          />
+          <Route
+            element={
+              <ProtectedRoute>
+                <Layout />
+              </ProtectedRoute>
+            }
+          >
             <Route path="/" element={<Index />} />
             <Route path="/builder" element={<Constructor />} />
             <Route path="/execute/:id" element={<Executor />} />
