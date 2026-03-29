@@ -11,15 +11,34 @@ import {
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
-import { Download, FileText } from 'lucide-react'
+import { Download, FileText, FileDown } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from '@/hooks/use-toast'
 import { Audit } from '@/types'
 import { AuditReportDialog } from '@/components/AuditReportDialog'
+import { useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
 
 export default function AuditLogs() {
   const { audits, currentUser, approveAudit } = useAppStore()
   const [selectedAudit, setSelectedAudit] = useState<Audit | null>(null)
+  const location = useLocation()
+
+  useEffect(() => {
+    const state = location.state as { autoPrintId?: string }
+    if (state?.autoPrintId && audits.length > 0) {
+      const auditToPrint = audits.find((a) => a.id === state.autoPrintId)
+      if (auditToPrint) {
+        setSelectedAudit(auditToPrint)
+        setTimeout(() => {
+          const btn = document.getElementById('btn-export-pdf')
+          if (btn) btn.click()
+        }, 500)
+      }
+      // Clean up state
+      window.history.replaceState({}, document.title)
+    }
+  }, [location.state, audits])
 
   const handleApprove = (auditId: string, status: 'Aprovado' | 'Rejeitado') => {
     approveAudit(auditId, status, currentUser?.name || 'Sistema')
@@ -88,9 +107,24 @@ export default function AuditLogs() {
                   </div>
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button variant="ghost" size="sm" onClick={() => setSelectedAudit(a)}>
-                    <FileText className="h-4 w-4 mr-2" /> Relatório
-                  </Button>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="ghost" size="sm" onClick={() => setSelectedAudit(a)}>
+                      <FileText className="h-4 w-4 mr-2" /> Relatório
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedAudit(a)
+                        setTimeout(() => {
+                          const btn = document.getElementById('btn-export-pdf')
+                          if (btn) btn.click()
+                        }, 300)
+                      }}
+                    >
+                      <FileDown className="h-4 w-4 mr-2" /> PDF
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}

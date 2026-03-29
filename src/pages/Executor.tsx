@@ -140,8 +140,9 @@ export default function Executor() {
       })
     }
 
+    const newAuditId = `aud_${generateId().substring(0, 8)}`
     submitAudit({
-      id: `aud_${generateId().substring(0, 8)}`,
+      id: newAuditId,
       templateId: template.id,
       templateName: template.name,
       operatorId: currentUser.id,
@@ -153,8 +154,9 @@ export default function Executor() {
       answers,
       approvalStatus: 'Pendente',
     })
-    toast({ title: 'Auditoria Concluída', description: 'Dados salvos e sincronizados.' })
-    navigate('/')
+    toast({ title: 'Auditoria Concluída', description: 'Gerando PDF do relatório...' })
+
+    navigate('/logs', { state: { autoPrintId: newAuditId } })
   }
 
   return (
