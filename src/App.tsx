@@ -13,6 +13,7 @@ const Users = lazy(() => import('./pages/Users'))
 const Reports = lazy(() => import('./pages/Reports'))
 const EntityConfig = lazy(() => import('./pages/master-data/EntityConfig'))
 const DynamicEntityCrud = lazy(() => import('./pages/master-data/DynamicEntityCrud'))
+const GeneralSettings = lazy(() => import('./pages/settings/GeneralSettings'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 
 const PageLoader = () => (
@@ -37,6 +38,7 @@ const App = () => (
             <Route path="/reports" element={<Reports />} />
             <Route path="/master-data/config" element={<EntityConfig />} />
             <Route path="/master-data/:slug" element={<DynamicEntityCrud />} />
+            <Route path="/settings/general" element={<GeneralSettings />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

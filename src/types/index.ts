@@ -75,6 +75,13 @@ export interface Subject {
   updated: string
 }
 
+export interface Department {
+  id: string
+  name: string
+  created: string
+  updated: string
+}
+
 export interface Template {
   id: string
   name: string

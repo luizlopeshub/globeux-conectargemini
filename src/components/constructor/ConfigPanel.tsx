@@ -1,46 +1,82 @@
+import { useState, useEffect } from 'react'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import useAppStore from '@/stores/useAppStore'
+import { getDepartments } from '@/services/departments'
+import { getSubjects } from '@/services/subjects'
+import type { Department, Subject } from '@/types'
 
 interface Props {
+  subjectId?: string
   assignedUsers: string[]
   assignedDepartments: string[]
-  onChange: (users: string[], depts: string[]) => void
+  onChange: (users: string[], depts: string[], subjectId?: string) => void
 }
 
-export function ConfigPanel({ assignedUsers, assignedDepartments, onChange }: Props) {
+export function ConfigPanel({ subjectId, assignedUsers, assignedDepartments, onChange }: Props) {
   const { users } = useAppStore()
-  const DEPARTMENTS = ['Recebimento', 'Expedição', 'Químicos', 'Qualidade']
+  const [departments, setDepartments] = useState<Department[]>([])
+  const [subjects, setSubjects] = useState<Subject[]>([])
   const operators = users.filter((u) => u.role === 'operator')
+
+  useEffect(() => {
+    getDepartments().then(setDepartments).catch(console.error)
+    getSubjects().then(setSubjects).catch(console.error)
+  }, [])
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 pb-6">
-      <div className="space-y-2">
+      <div className="space-y-2 pb-4">
+        <h3 className="font-medium text-sm">Assunto (Obrigatório)</h3>
+        <select
+          value={subjectId || ''}
+          onChange={(e) => onChange(assignedUsers, assignedDepartments, e.target.value)}
+          className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <option value="" disabled>
+            Selecione o assunto
+          </option>
+          {subjects.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="space-y-2 border-t pt-4">
         <h3 className="font-medium text-sm">Atribuir a Departamentos</h3>
         <p className="text-xs text-muted-foreground mb-2">
           Qualquer operador nestes departamentos verá o checklist.
         </p>
-        <div className="border rounded-md p-2 space-y-2 bg-background">
-          {DEPARTMENTS.map((d) => (
-            <div key={d} className="flex items-center space-x-2">
-              <Checkbox
-                id={`dept-${d}`}
-                checked={assignedDepartments.includes(d)}
-                onCheckedChange={(c) => {
-                  onChange(
-                    assignedUsers,
-                    c ? [...assignedDepartments, d] : assignedDepartments.filter((id) => id !== d),
-                  )
-                }}
-              />
-              <label
-                htmlFor={`dept-${d}`}
-                className="text-sm font-medium leading-none cursor-pointer"
-              >
-                {d}
-              </label>
-            </div>
-          ))}
+        <div className="border rounded-md p-2 space-y-2 bg-background max-h-48 overflow-y-auto">
+          {departments.length === 0 ? (
+            <p className="text-xs text-muted-foreground p-2">Nenhum departamento cadastrado.</p>
+          ) : (
+            departments.map((d) => (
+              <div key={d.id} className="flex items-center space-x-2">
+                <Checkbox
+                  id={`dept-${d.id}`}
+                  checked={assignedDepartments.includes(d.id)}
+                  onCheckedChange={(c) => {
+                    onChange(
+                      assignedUsers,
+                      c
+                        ? [...assignedDepartments, d.id]
+                        : assignedDepartments.filter((id) => id !== d.id),
+                      subjectId,
+                    )
+                  }}
+                />
+                <label
+                  htmlFor={`dept-${d.id}`}
+                  className="text-sm font-medium leading-none cursor-pointer"
+                >
+                  {d.name}
+                </label>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
@@ -62,6 +98,7 @@ export function ConfigPanel({ assignedUsers, assignedDepartments, onChange }: Pr
                     onChange(
                       c ? [...assignedUsers, u.id] : assignedUsers.filter((id) => id !== u.id),
                       assignedDepartments,
+                      subjectId,
                     )
                   }}
                 />
