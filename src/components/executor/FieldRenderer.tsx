@@ -52,13 +52,19 @@ export function FieldRenderer({ field, value, onChange, allAnswers, error }: Pro
           />
         )
       case 'lookup': {
+        const entitySlug =
+          field.lookupSource || field.settings?.entitySlug || field.lookupEntitySlug
+        const dataSourceType = field.dataSourceType || (entitySlug ? 'master_data' : 'internal')
         return (
           <SmartLookup
             value={value}
             onChange={onChange}
-            defaultEntityType={field.lookupSource}
-            allowEntityChange={!field.lookupSource}
+            defaultEntityType={entitySlug}
+            allowEntityChange={!entitySlug}
             error={!!error}
+            dataSourceType={dataSourceType as any}
+            apiUrl={field.apiUrl}
+            apiMapping={field.apiMapping}
           />
         )
       }

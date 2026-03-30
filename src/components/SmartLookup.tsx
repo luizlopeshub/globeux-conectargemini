@@ -19,6 +19,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Check, Search, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import pb from '@/lib/pocketbase/client'
 
 interface Props {
   value?: string
@@ -26,7 +27,7 @@ interface Props {
   defaultEntityType?: string
   allowEntityChange?: boolean
   error?: boolean
-  dataSourceType?: 'internal' | 'external_api'
+  dataSourceType?: 'internal' | 'external_api' | 'master_data'
   apiUrl?: string
   apiMapping?: string
 }
@@ -55,6 +56,9 @@ export function SmartLookup({
     }
   }, [defaultEntityType, allowEntityChange])
 
+  const def = entityDefs.find((d) => d.id === entityType || d.slug === entityType)
+  const resolvedEntityId = def?.id
+
   useEffect(() => {
     if (search.length >= 3) {
       if (dataSourceType === 'internal' && entityType) {
@@ -72,6 +76,27 @@ export function SmartLookup({
           setResults(filtered)
           setLoading(false)
         }, 400)
+        return () => clearTimeout(timer)
+      } else if (dataSourceType === 'master_data' && resolvedEntityId) {
+        setLoading(true)
+        const timer = setTimeout(async () => {
+          try {
+            const records = await pb.collection('master_data_entries').getList(1, 50, {
+              filter: `entity_id = "${resolvedEntityId}" && data ~ "${search}"`,
+            })
+            setResults(
+              records.items.map((item) => ({
+                id: item.id,
+                ...item.data,
+              })),
+            )
+          } catch (e) {
+            console.error('Master data lookup failed', e)
+            setResults([])
+          } finally {
+            setLoading(false)
+          }
+        }, 600)
         return () => clearTimeout(timer)
       } else if (dataSourceType === 'external_api' && apiUrl) {
         setLoading(true)
@@ -114,21 +139,34 @@ export function SmartLookup({
       setResults([])
       setLoading(false)
     }
-  }, [search, entityType, entityRecords, dataSourceType, apiUrl, apiMapping])
-
-  const def = entityDefs.find((d) => d.id === entityType)
+  }, [search, entityType, entityRecords, dataSourceType, apiUrl, apiMapping, resolvedEntityId])
 
   const getName = (item: any) => {
     if (dataSourceType === 'external_api') return item.name
-    const firstField = def?.fields[0]?.id || 'id'
+    if (dataSourceType === 'master_data') {
+      const firstField = def?.fields?.[0]?.id || def?.fields?.[0]?.name || 'id'
+      return (
+        item[firstField] ||
+        item.name ||
+        item.title ||
+        item.description ||
+        Object.values(item).find((v) => typeof v === 'string' && v !== item.id) ||
+        'Item'
+      )
+    }
+    const firstField = def?.fields?.[0]?.id || 'id'
     return item[firstField]
   }
 
   const getMeta = (item: any) => {
     if (dataSourceType === 'external_api') return item.id
+    if (dataSourceType === 'master_data') {
+      const secondField = def?.fields?.[1]?.id || def?.fields?.[1]?.name
+      return secondField ? item[secondField] : ''
+    }
     if (entityType === 'clients') return item.cnpj || ''
     if (entityType === 'products') return item.lote || item.sku || ''
-    const secondField = def?.fields[1]?.id
+    const secondField = def?.fields?.[1]?.id
     return secondField ? item[secondField] : ''
   }
 
@@ -136,7 +174,7 @@ export function SmartLookup({
     value && dataSourceType === 'internal' ? entityRecords.find((r) => r.id === value) : null
 
   const displayValue =
-    dataSourceType === 'external_api' && value
+    (dataSourceType === 'external_api' || dataSourceType === 'master_data') && value
       ? externalValueName || value
       : selectedItem
         ? getName(selectedItem)
@@ -213,7 +251,7 @@ export function SmartLookup({
                       value={item.id}
                       onSelect={() => {
                         onChange(item.id)
-                        if (dataSourceType === 'external_api') {
+                        if (dataSourceType === 'external_api' || dataSourceType === 'master_data') {
                           setExternalValueName(getName(item))
                         }
                         setOpen(false)
