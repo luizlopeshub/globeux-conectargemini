@@ -1,5 +1,4 @@
-import { useState } from 'react'
-import useAppStore from '@/stores/useAppStore'
+import { useState, useEffect } from 'react'
 import { EntityDef, EntityFieldDef } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,22 +11,95 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Plus, Edit2, Trash2, Save, Database } from 'lucide-react'
+import { Plus, Edit2, Trash2, Save, Database, Loader2 } from 'lucide-react'
 import { generateId } from '@/lib/utils'
+import { useToast } from '@/hooks/use-toast'
+import pb from '@/lib/pocketbase/client'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 
 export default function EntityConfig() {
-  const { entityDefs, saveEntityDef, deleteEntityDef } = useAppStore()
+  const [entityDefs, setEntityDefs] = useState<EntityDef[]>([])
   const [editing, setEditing] = useState<EntityDef | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const { toast } = useToast()
+
+  const loadEntities = async () => {
+    try {
+      const records = await pb.collection('entity_definitions').getFullList<EntityDef>()
+      setEntityDefs(records)
+    } catch (err) {
+      toast({
+        title: 'Erro',
+        description: 'Falha ao carregar as entidades.',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  useEffect(() => {
+    loadEntities()
+  }, [])
 
   const handleEdit = (def?: EntityDef) => {
     if (def) setEditing({ ...def, fields: [...def.fields] })
-    else setEditing({ id: `ent_${generateId().substring(0, 6)}`, name: '', slug: '', fields: [] })
+    else setEditing({ id: '', name: '', slug: '', fields: [] })
   }
 
-  const handleSave = () => {
-    if (!editing || !editing.name || !editing.slug || editing.fields.length === 0) return
-    saveEntityDef(editing)
-    setEditing(null)
+  const handleSave = async () => {
+    if (!editing || !editing.name || !editing.slug || editing.fields.length === 0) {
+      toast({
+        title: 'Atenção',
+        description: 'Preencha o nome, slug e adicione ao menos um campo.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      let existingRecord = null
+      try {
+        existingRecord = await pb
+          .collection('entity_definitions')
+          .getFirstListItem(`slug="${editing.slug}"`)
+      } catch (err) {
+        // Not found, proceeding to create
+      }
+
+      if (existingRecord) {
+        await pb.collection('entity_definitions').update(existingRecord.id, {
+          name: editing.name,
+          slug: editing.slug,
+          fields: editing.fields,
+        })
+        toast({ title: 'Sucesso', description: 'Entidade atualizada com sucesso.' })
+      } else {
+        await pb.collection('entity_definitions').create({
+          name: editing.name,
+          slug: editing.slug,
+          fields: editing.fields,
+        })
+        toast({ title: 'Sucesso', description: 'Entidade criada com sucesso.' })
+      }
+
+      setEditing(null)
+      loadEntities()
+    } catch (err: any) {
+      toast({ title: 'Erro ao salvar', description: getErrorMessage(err), variant: 'destructive' })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Tem certeza que deseja excluir esta entidade?')) return
+    try {
+      await pb.collection('entity_definitions').delete(id)
+      toast({ title: 'Sucesso', description: 'Entidade excluída.' })
+      loadEntities()
+    } catch (err: any) {
+      toast({ title: 'Erro', description: getErrorMessage(err), variant: 'destructive' })
+    }
   }
 
   const addField = () => {
@@ -36,7 +108,7 @@ export default function EntityConfig() {
       ...editing,
       fields: [
         ...editing.fields,
-        { id: `f_${generateId().substring(0, 6)}`, name: '', type: 'text' },
+        { id: `f_${generateId().substring(0, 6)}`, name: '', type: 'text' as const },
       ],
     })
   }
@@ -58,14 +130,19 @@ export default function EntityConfig() {
       <div className="max-w-3xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">
-            {editing.name ? `Editar Entidade: ${editing.name}` : 'Nova Entidade'}
+            {editing.id ? `Editar Entidade: ${editing.name}` : 'Nova Entidade'}
           </h1>
           <div className="space-x-2">
-            <Button variant="outline" onClick={() => setEditing(null)}>
+            <Button variant="outline" onClick={() => setEditing(null)} disabled={isLoading}>
               Cancelar
             </Button>
-            <Button onClick={handleSave} className="gap-2">
-              <Save className="h-4 w-4" /> Salvar Entidade
+            <Button onClick={handleSave} className="gap-2" disabled={isLoading}>
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              Salvar Entidade
             </Button>
           </div>
         </div>
@@ -80,6 +157,7 @@ export default function EntityConfig() {
                 <Input
                   value={editing.name}
                   onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                  disabled={isLoading}
                 />
               </div>
               <div className="space-y-2">
@@ -92,6 +170,7 @@ export default function EntityConfig() {
                       slug: e.target.value.toLowerCase().replace(/\s+/g, '-'),
                     })
                   }
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -103,7 +182,7 @@ export default function EntityConfig() {
               <CardTitle>Estrutura de Dados (Campos)</CardTitle>
               <CardDescription>Defina as colunas para esta tabela customizada.</CardDescription>
             </div>
-            <Button size="sm" onClick={addField}>
+            <Button size="sm" onClick={addField} disabled={isLoading}>
               <Plus className="h-4 w-4 mr-2" /> Adicionar Campo
             </Button>
           </CardHeader>
@@ -116,11 +195,16 @@ export default function EntityConfig() {
                     value={f.name}
                     onChange={(e) => updateField(i, { name: e.target.value })}
                     placeholder="Ex: CPF, Data de Validade..."
+                    disabled={isLoading}
                   />
                 </div>
                 <div className="w-1/3 space-y-1">
                   <Label className="text-xs">Tipo do Dado</Label>
-                  <Select value={f.type} onValueChange={(v: any) => updateField(i, { type: v })}>
+                  <Select
+                    value={f.type}
+                    onValueChange={(v: any) => updateField(i, { type: v })}
+                    disabled={isLoading}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -137,6 +221,7 @@ export default function EntityConfig() {
                     size="icon"
                     onClick={() => removeField(i)}
                     className="text-destructive"
+                    disabled={isLoading}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -194,7 +279,7 @@ export default function EntityConfig() {
                   variant="outline"
                   size="icon"
                   className="text-destructive hover:bg-destructive hover:text-white"
-                  onClick={() => deleteEntityDef(def.id)}
+                  onClick={() => handleDelete(def.id)}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -202,6 +287,11 @@ export default function EntityConfig() {
             </CardContent>
           </Card>
         ))}
+        {entityDefs.length === 0 && (
+          <div className="col-span-full text-center py-12 text-muted-foreground bg-muted/20 rounded-lg border border-dashed">
+            Nenhuma entidade configurada.
+          </div>
+        )}
       </div>
     </div>
   )
