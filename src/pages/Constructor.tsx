@@ -15,13 +15,6 @@ import { ConfigPanel } from '@/components/constructor/ConfigPanel'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
   Sheet,
   SheetContent,
   SheetDescription,
@@ -41,7 +34,10 @@ import {
   Paperclip,
   X,
   Copy,
+  Eye,
 } from 'lucide-react'
+import { TemplateSearchDialog } from '@/components/constructor/TemplateSearchDialog'
+import { TemplatePreview } from '@/components/constructor/TemplatePreview'
 
 export default function Constructor() {
   const { templates, addTemplate, updateTemplate, currentUser } = useAppStore()
@@ -49,6 +45,7 @@ export default function Constructor() {
   const [hasLoadedInitial, setHasLoadedInitial] = useState(false)
 
   const [templateName, setTemplateName] = useState('')
+  const [nameError, setNameError] = useState<string | null>(null)
   const [subject, setSubject] = useState('')
   const [description, setDescription] = useState('')
   const [attachments, setAttachments] = useState<string[]>([])
@@ -63,6 +60,9 @@ export default function Constructor() {
 
   const [subjectsList, setSubjectsList] = useState<Subject[]>([])
 
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(false)
+
   useEffect(() => {
     getSubjects().then(setSubjectsList).catch(console.error)
   }, [])
@@ -73,6 +73,10 @@ export default function Constructor() {
       setHasLoadedInitial(true)
     }
   }, [templates, hasLoadedInitial])
+
+  useEffect(() => {
+    if (nameError) setNameError(null)
+  }, [templateName])
 
   if (currentUser?.role !== 'admin') {
     return (
@@ -86,6 +90,7 @@ export default function Constructor() {
   const loadTemplate = (t: Template) => {
     setEditingTemplateId(t.id)
     setTemplateName(t.name)
+    setNameError(null)
     setSubject(t.subject || '')
     setDescription(t.description || '')
     setAttachments(t.attachments || [])
@@ -107,6 +112,7 @@ export default function Constructor() {
   const createNewTemplate = () => {
     setEditingTemplateId(null)
     setTemplateName('')
+    setNameError(null)
     setSubject('')
     setDescription('')
     setAttachments([])
@@ -117,8 +123,19 @@ export default function Constructor() {
   }
 
   const handleClone = () => {
+    const copyName = `${templateName || 'Checklist'} - Cópia`
     setEditingTemplateId(null)
-    setTemplateName((prev) => `${prev || 'Checklist'} - Cópia`)
+    setTemplateName(copyName)
+
+    const isDuplicate = templates.some(
+      (t) => t.name.trim().toLowerCase() === copyName.trim().toLowerCase(),
+    )
+    if (isDuplicate) {
+      setNameError('Já existe um checklist com este nome. Escolha um nome diferente.')
+    } else {
+      setNameError(null)
+    }
+
     toast({ title: 'Template clonado', description: 'Você está editando uma cópia não salva.' })
   }
 
@@ -148,10 +165,27 @@ export default function Constructor() {
   }
 
   const handleSave = () => {
-    if (!templateName) {
+    if (!templateName.trim()) {
       setMainTab('campos_blocos')
+      setNameError('O Nome do checklist é obrigatório')
       return toast({ title: 'O Nome do checklist é obrigatório', variant: 'destructive' })
     }
+
+    const isDuplicate = templates.some(
+      (t) =>
+        t.name.trim().toLowerCase() === templateName.trim().toLowerCase() &&
+        t.id !== editingTemplateId,
+    )
+    if (isDuplicate) {
+      setMainTab('campos_blocos')
+      setNameError('Já existe um checklist com este nome. Escolha um nome diferente.')
+      return toast({
+        title: 'Nome duplicado',
+        description: 'Já existe um checklist com este nome.',
+        variant: 'destructive',
+      })
+    }
+
     if (!subject) {
       setMainTab('campos_blocos')
       return toast({
@@ -172,7 +206,7 @@ export default function Constructor() {
     }
 
     const tmplData = {
-      name: templateName,
+      name: templateName.trim(),
       subject,
       description,
       attachments,
@@ -227,47 +261,41 @@ export default function Constructor() {
       {/* Global Header */}
       <header className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 bg-card border-b shrink-0 gap-4 z-20 shadow-sm relative">
         <div className="flex items-center gap-3 w-full sm:w-auto">
-          <Select
-            value={editingTemplateId || 'new'}
-            onValueChange={(val) => {
-              if (val === 'new') createNewTemplate()
-              else {
-                const t = templates.find((x) => x.id === val)
-                if (t) loadTemplate(t)
-              }
-            }}
+          <Button
+            variant="outline"
+            onClick={() => setSearchOpen(true)}
+            className="w-[220px] justify-start bg-muted/50 border-transparent hover:border-input shadow-none"
           >
-            <SelectTrigger className="w-[200px] h-9 bg-muted/50 border-transparent focus:ring-1">
-              <SelectValue placeholder="Selecione um checklist" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="new" className="font-semibold text-primary">
-                <span className="flex items-center gap-2">
-                  <Plus className="h-4 w-4" /> Novo Template
-                </span>
-              </SelectItem>
-              {templates.map((t) => (
-                <SelectItem key={t.id} value={t.id}>
-                  {t.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <FileText className="mr-2 h-4 w-4 text-muted-foreground" />
+            <span className="truncate">
+              {editingTemplateId
+                ? templates.find((t) => t.id === editingTemplateId)?.name || 'Desconhecido'
+                : 'Novo Template'}
+            </span>
+          </Button>
 
           <div className="hidden sm:block h-5 w-px bg-border" />
 
           <Input
             value={templateName}
             onChange={(e) => setTemplateName(e.target.value)}
-            className="h-9 font-bold text-sm border-transparent hover:border-input focus:border-input bg-transparent w-[200px] sm:w-[250px] shadow-none"
+            className={`h-9 font-bold text-sm bg-transparent w-[200px] sm:w-[250px] shadow-none ${nameError ? 'border-destructive focus-visible:ring-destructive text-destructive' : 'border-transparent hover:border-input focus-visible:ring-1'}`}
             placeholder="Nome do Checklist"
           />
         </div>
 
         <div className="flex items-center justify-end w-full sm:w-auto shrink-0 gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setPreviewOpen(true)}
+            size="sm"
+            className="gap-2 shadow-sm border-primary/20 hover:bg-primary/5 text-primary"
+          >
+            <Eye className="h-4 w-4" /> Visualizar
+          </Button>
           {editingTemplateId && (
             <Button variant="outline" onClick={handleClone} size="sm" className="gap-2 shadow-sm">
-              <Copy className="h-4 w-4" /> Clonar Template
+              <Copy className="h-4 w-4" /> Clonar
             </Button>
           )}
           <Button onClick={handleSave} size="sm" className="gap-2 shadow-sm">
@@ -339,7 +367,15 @@ export default function Constructor() {
                         value={templateName}
                         onChange={(e) => setTemplateName(e.target.value)}
                         placeholder="Ex: Inspeção de Recebimento de Carga"
+                        className={
+                          nameError ? 'border-destructive focus-visible:ring-destructive' : ''
+                        }
                       />
+                      {nameError && (
+                        <p className="text-xs font-medium text-destructive animate-in fade-in slide-in-from-top-1">
+                          {nameError}
+                        </p>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
@@ -636,6 +672,27 @@ export default function Constructor() {
           </div>
         </SheetContent>
       </Sheet>
+
+      <TemplateSearchDialog
+        open={searchOpen}
+        onOpenChange={setSearchOpen}
+        templates={templates}
+        subjects={subjectsList}
+        onSelect={(val) => {
+          if (val === 'new') createNewTemplate()
+          else loadTemplate(val)
+          setSearchOpen(false)
+        }}
+      />
+
+      <TemplatePreview
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        blocks={blocks}
+        fields={fields}
+        templateName={templateName}
+        description={description}
+      />
     </div>
   )
 }

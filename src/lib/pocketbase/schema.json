@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-30T13:59:34.691Z",
+  "generatedAt": "2026-03-30T14:06:12.169Z",
   "collections": [
     {
       "name": "users",
@@ -137,7 +137,10 @@
           "collectionRef": "subjects"
         }
       ],
-      "indexes": ["CREATE INDEX `idx_templates_subject` ON `templates` (subject)"]
+      "indexes": [
+        "CREATE INDEX `idx_templates_subject` ON `templates` (subject)",
+        "CREATE UNIQUE INDEX `idx_templates_unique_name` ON `templates` (name)"
+      ]
     },
     {
       "name": "schedules",
