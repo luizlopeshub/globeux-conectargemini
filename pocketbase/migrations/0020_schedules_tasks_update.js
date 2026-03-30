@@ -5,7 +5,7 @@ migrate(
       tasksCol.fields.add(
         new RelationField({
           name: 'template_id',
-          collectionId: 'templates',
+          collectionId: app.findCollectionByNameOrId('templates').id,
           maxSelect: 1,
           required: false,
         }),

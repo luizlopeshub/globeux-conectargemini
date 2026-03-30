@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-30T17:09:27.474Z",
+  "generatedAt": "2026-03-30T17:13:52.791Z",
   "collections": [
     {
       "name": "users",
@@ -192,6 +192,12 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "time",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": []
@@ -251,6 +257,13 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "template_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "templates"
         }
       ],
       "indexes": []
