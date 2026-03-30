@@ -12,7 +12,10 @@ import { Send, ArrowRight, ArrowLeft, CheckCircle2, AlertOctagon } from 'lucide-
 export default function Executor() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { templates, drafts, saveDraft, submitAudit, currentUser } = useAppStore()
+  const searchParams = new URLSearchParams(window.location.search)
+  const taskId = searchParams.get('taskId')
+  const { templates, drafts, saveDraft, submitAudit, currentUser, tasks, updateTask } =
+    useAppStore()
 
   const template = templates.find((t) => t.id === id)
   const [answers, setAnswers] = useState<Record<string, any>>({})
@@ -154,6 +157,14 @@ export default function Executor() {
       answers,
       approvalStatus: 'Pendente',
     })
+
+    if (taskId) {
+      const taskToUpdate = tasks.find((t) => t.id === taskId)
+      if (taskToUpdate) {
+        updateTask({ ...taskToUpdate, status: 'completed' })
+      }
+    }
+
     toast({ title: 'Auditoria Concluída', description: 'Gerando PDF do relatório...' })
 
     navigate('/logs', { state: { autoPrintId: newAuditId } })

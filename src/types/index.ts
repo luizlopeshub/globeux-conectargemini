@@ -131,6 +131,7 @@ export interface Schedule {
   recurrence: 'daily' | 'weekly' | 'monthly' | 'custom'
   template_id: string
   assigned_to: string
+  time?: string
   created: string
   updated: string
 }
@@ -142,6 +143,7 @@ export interface Task {
   user_id: string
   title: string
   description: string
+  template_id?: string
   created: string
   updated: string
 }

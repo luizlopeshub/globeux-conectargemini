@@ -283,6 +283,9 @@ export default function useAppStore() {
           user_id: a.operatorId,
           due_date: new Date().toISOString(),
         })
+
+        const template = globalState.templates.find((t) => t.id === a.templateId)
+
         const response = await pb.collection('responses').create({
           task_id: task.id,
           user_id: a.operatorId,
@@ -294,6 +297,7 @@ export default function useAppStore() {
             answers: a.answers,
             approvalStatus: a.approvalStatus,
             timestamp: a.timestamp,
+            pdf_settings: template?.pdf_settings || null,
           },
         })
         const mappedAudit = { ...a, id: response.id }

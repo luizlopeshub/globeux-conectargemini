@@ -19,6 +19,7 @@ const GeneralSettings = lazy(() => import('./pages/settings/GeneralSettings'))
 const Integrations = lazy(() => import('./pages/settings/Integrations'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 const Login = lazy(() => import('./pages/Login'))
+const Schedules = lazy(() => import('./pages/Schedules'))
 
 const ProtectedRoute = ({
   children,
@@ -97,6 +98,15 @@ const AppContent = () => {
           <Route path="/execute/:id" element={<Executor />} />
           <Route path="/logs" element={<AuditLogs />} />
           <Route path="/reports" element={<Reports />} />
+
+          <Route
+            path="/schedules"
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'supervisor']}>
+                <Schedules />
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/builder"
