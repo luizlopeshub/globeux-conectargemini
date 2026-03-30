@@ -2,6 +2,8 @@ import { FormField, FormBlock, ActiveItem } from '@/types'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
+import { Button } from '@/components/ui/button'
+import { Plus, Trash2 } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -126,14 +128,62 @@ export function PropertiesPanel({
           />
         </div>
 
-        {(activeField.type === 'radio' || activeField.type === 'checkbox') && (
-          <div className="space-y-2">
-            <Label>Opções (separadas por vírgula)</Label>
-            <Input
-              value={activeField.options || ''}
-              onChange={(e) => handleUpdateField(activeField.id, { options: e.target.value })}
-              placeholder="Ex: Sim, Não, N/A"
-            />
+        {['radio', 'checkbox', 'select'].includes(activeField.type) && (
+          <div className="space-y-3">
+            <Label>Gerenciar Opções</Label>
+            <div className="space-y-2">
+              {(typeof activeField.options === 'string' ? activeField.options.split(',') : []).map(
+                (opt, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <Input
+                      value={opt}
+                      onChange={(e) => {
+                        const currentOptions =
+                          typeof activeField.options === 'string'
+                            ? activeField.options.split(',')
+                            : []
+                        currentOptions[idx] = e.target.value.replace(/,/g, '')
+                        handleUpdateField(activeField.id, {
+                          options: currentOptions.length > 0 ? currentOptions.join(',') : undefined,
+                        })
+                      }}
+                      placeholder={`Opção ${idx + 1}`}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => {
+                        const currentOptions =
+                          typeof activeField.options === 'string'
+                            ? activeField.options.split(',')
+                            : []
+                        currentOptions.splice(idx, 1)
+                        handleUpdateField(activeField.id, {
+                          options: currentOptions.length > 0 ? currentOptions.join(',') : undefined,
+                        })
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ),
+              )}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full mt-2"
+              onClick={() => {
+                const currentOptions =
+                  typeof activeField.options === 'string' ? activeField.options.split(',') : []
+                currentOptions.push('')
+                handleUpdateField(activeField.id, { options: currentOptions.join(',') })
+              }}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Adicionar Opção
+            </Button>
           </div>
         )}
 
