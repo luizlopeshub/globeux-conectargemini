@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import pb from '@/lib/pocketbase/client'
 import { Label } from '@/components/ui/label'
 import useAppStore from '@/stores/useAppStore'
 import { Package } from 'lucide-react'
@@ -84,6 +85,19 @@ export default function Login() {
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? 'Entrando...' : 'Entrar'}
               </Button>
+              <div className="mt-4 text-center">
+                <Button
+                  type="button"
+                  variant="link"
+                  className="text-xs text-muted-foreground"
+                  onClick={() => {
+                    pb.authStore.clear()
+                    window.location.reload()
+                  }}
+                >
+                  Problemas no acesso? Limpar Sessão
+                </Button>
+              </div>
             </CardFooter>
           </form>
         </Card>

@@ -64,96 +64,101 @@ const PageLoader = () => (
   </div>
 )
 
-const AppHydrator = () => {
-  const { fetchInitialData, isAuthenticated } = useAppStore()
+const AppContent = () => {
+  const { isInitializing, fetchInitialData, isAuthenticated } = useAppStore()
+
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchInitialData()
-    }
+    fetchInitialData()
   }, [isAuthenticated])
-  return null
+
+  if (isInitializing) {
+    return <PageLoader />
+  }
+
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <Routes>
+        <Route
+          path="/login"
+          element={
+            <PublicRoute>
+              <Login />
+            </PublicRoute>
+          }
+        />
+        <Route
+          element={
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="/" element={<Index />} />
+          <Route path="/execute/:id" element={<Executor />} />
+          <Route path="/logs" element={<AuditLogs />} />
+          <Route path="/reports" element={<Reports />} />
+
+          <Route
+            path="/builder"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <Constructor />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/users"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <Users />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/master-data/config"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <EntityConfig />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/master-data/:slug"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <DynamicEntityCrud />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings/general"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <GeneralSettings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings/integrations"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <Integrations />
+              </ProtectedRoute>
+            }
+          />
+        </Route>
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </Suspense>
+  )
 }
 
 const App = () => (
   <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-    <AppHydrator />
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <Suspense fallback={<PageLoader />}>
-        <Routes>
-          <Route
-            path="/login"
-            element={
-              <PublicRoute>
-                <Login />
-              </PublicRoute>
-            }
-          />
-          <Route
-            element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
-            <Route path="/" element={<Index />} />
-            <Route path="/execute/:id" element={<Executor />} />
-            <Route path="/logs" element={<AuditLogs />} />
-            <Route path="/reports" element={<Reports />} />
-
-            <Route
-              path="/builder"
-              element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <Constructor />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/users"
-              element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <Users />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/master-data/config"
-              element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <EntityConfig />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/master-data/:slug"
-              element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <DynamicEntityCrud />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/settings/general"
-              element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <GeneralSettings />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/settings/integrations"
-              element={
-                <ProtectedRoute allowedRoles={['admin']}>
-                  <Integrations />
-                </ProtectedRoute>
-              }
-            />
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </Suspense>
+      <AppContent />
     </TooltipProvider>
   </BrowserRouter>
 )

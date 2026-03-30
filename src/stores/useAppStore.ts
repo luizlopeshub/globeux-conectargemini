@@ -23,6 +23,7 @@ interface DraftState {
 }
 
 interface AppState {
+  isInitializing: boolean
   isLoading: boolean
   isAuthenticated: boolean
   users: User[]
@@ -41,6 +42,7 @@ interface AppState {
 }
 
 let globalState: AppState = {
+  isInitializing: true,
   isLoading: false,
   isAuthenticated: pb.authStore.isValid,
   users: [],
@@ -59,6 +61,21 @@ let globalState: AppState = {
 }
 
 let listeners: Array<(state: AppState) => void> = []
+
+const performLogout = () => {
+  pb.authStore.clear()
+  update({
+    currentUser: null,
+    isAuthenticated: false,
+    audits: [],
+    templates: [],
+    schedules: [],
+    tasks: [],
+    actionPlans: [],
+    subjects: [],
+    departments: [],
+  })
+}
 
 const update = (partial: Partial<AppState>) => {
   globalState = { ...globalState, ...partial }
@@ -108,24 +125,23 @@ export default function useAppStore() {
         update({ currentUser: authData.record as any, isAuthenticated: true })
       }, 'Login efetuado com sucesso!')
     },
-    logout: () => {
-      pb.authStore.clear()
-      update({
-        currentUser: null,
-        isAuthenticated: false,
-        audits: [],
-        templates: [],
-        schedules: [],
-        tasks: [],
-        actionPlans: [],
-        subjects: [],
-        departments: [],
-      })
-    },
+    logout: performLogout,
 
     fetchInitialData: async () => {
-      if (!pb.authStore.isValid) return
-      await withLoading(async () => {
+      update({ isInitializing: true })
+      if (!pb.authStore.isValid) {
+        update({ isInitializing: false })
+        return
+      }
+
+      try {
+        // Hydration logic: explicitly verify user session on server
+        try {
+          await pb.collection('users').authRefresh()
+        } catch (authErr) {
+          throw authErr
+        }
+
         const currentUserRole = pb.authStore.record?.role || 'operator'
         const isAdmin = currentUserRole === 'admin'
 
@@ -187,7 +203,25 @@ export default function useAppStore() {
           apiSettings: (apiSettingsRes[0] as any) || null,
           currentUser: (pb.authStore.record as any) || null,
         })
-      })
+      } catch (err: any) {
+        console.error('Initial data fetch error:', err)
+        if (err.status === 401 || err.status === 403 || err.status === 400 || err.status === 404) {
+          performLogout()
+          toast({
+            title: 'Sessão Inválida',
+            description: 'Sua sessão expirou ou é inválida. Por favor, faça login novamente.',
+            variant: 'destructive',
+          })
+        } else {
+          toast({
+            title: 'Erro de Conexão',
+            description: getErrorMessage(err),
+            variant: 'destructive',
+          })
+        }
+      } finally {
+        update({ isInitializing: false })
+      }
     },
 
     addUser: async (u: Partial<User>) => {
