@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { EntityDef, EntityFieldDef } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,6 +12,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { Plus, Edit2, Trash2, Save, Database, Loader2 } from 'lucide-react'
 import { generateId } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
@@ -22,6 +31,7 @@ export default function EntityConfig() {
   const [editing, setEditing] = useState<EntityDef | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
+  const navigate = useNavigate()
 
   const loadEntities = async () => {
     try {
@@ -253,46 +263,65 @@ export default function EntityConfig() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {entityDefs.map((def) => (
-          <Card key={def.id} className="hover:border-primary/50 transition-colors">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Database className="h-5 w-5 text-primary" /> {def.name}
-              </CardTitle>
-              <CardDescription>/{def.slug}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-4">
-                {def.fields.length} campos configurados.
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => handleEdit(def)}
-                >
-                  <Edit2 className="h-4 w-4 mr-2" /> Editar
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="text-destructive hover:bg-destructive hover:text-white"
-                  onClick={() => handleDelete(def.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-        {entityDefs.length === 0 && (
-          <div className="col-span-full text-center py-12 text-muted-foreground bg-muted/20 rounded-lg border border-dashed">
-            Nenhuma entidade configurada.
-          </div>
-        )}
-      </div>
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nome</TableHead>
+                <TableHead>Endpoint / Slug</TableHead>
+                <TableHead>Qtd. Campos</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {entityDefs.map((def) => (
+                <TableRow key={def.id}>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                      <Database className="h-4 w-4 text-primary" />
+                      {def.name}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <span className="bg-muted px-2 py-1 rounded text-xs font-mono">
+                      /{def.slug}
+                    </span>
+                  </TableCell>
+                  <TableCell>{def.fields.length} campos</TableCell>
+                  <TableCell className="text-right space-x-2">
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => navigate(`/master-data/records/${def.slug}`)}
+                    >
+                      Gerenciar Dados
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => handleEdit(def)}>
+                      <Edit2 className="h-4 w-4 mr-2" /> Estrutura
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="text-destructive hover:bg-destructive hover:text-white"
+                      onClick={() => handleDelete(def.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {entityDefs.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                    Nenhuma entidade configurada.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   )
 }

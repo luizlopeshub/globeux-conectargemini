@@ -30,6 +30,14 @@ export interface EntityRecord {
   [key: string]: any
 }
 
+export interface MasterDataEntry {
+  id: string
+  entity_id: string
+  data: Record<string, any>
+  created: string
+  updated: string
+}
+
 export type FieldType =
   | 'text'
   | 'number'

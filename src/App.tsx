@@ -14,7 +14,7 @@ const AuditLogs = lazy(() => import('./pages/AuditLogs'))
 const Users = lazy(() => import('./pages/Users'))
 const Reports = lazy(() => import('./pages/Reports'))
 const EntityConfig = lazy(() => import('./pages/master-data/EntityConfig'))
-const DynamicEntityCrud = lazy(() => import('./pages/master-data/DynamicEntityCrud'))
+const MasterDataRecords = lazy(() => import('./pages/master-data/MasterDataRecords'))
 const GeneralSettings = lazy(() => import('./pages/settings/GeneralSettings'))
 const Integrations = lazy(() => import('./pages/settings/Integrations'))
 const NotFound = lazy(() => import('./pages/NotFound'))
@@ -123,10 +123,10 @@ const AppContent = () => {
             }
           />
           <Route
-            path="/master-data/:slug"
+            path="/master-data/records/:slug"
             element={
               <ProtectedRoute allowedRoles={['admin']}>
-                <DynamicEntityCrud />
+                <MasterDataRecords />
               </ProtectedRoute>
             }
           />

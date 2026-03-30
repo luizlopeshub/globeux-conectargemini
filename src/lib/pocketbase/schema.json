@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-30T14:11:16.102Z",
+  "generatedAt": "2026-03-30T14:22:05.230Z",
   "collections": [
     {
       "name": "users",
@@ -533,6 +533,49 @@
         }
       ],
       "indexes": ["CREATE UNIQUE INDEX idx_entity_definitions_slug ON entity_definitions (slug)"]
+    },
+    {
+      "name": "master_data_entries",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "entity_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "entity_definitions"
+        },
+        {
+          "name": "data",
+          "type": "json",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX `idx_master_data_entries_entity` ON `master_data_entries` (`entity_id`)"
+      ]
     }
   ]
 }
