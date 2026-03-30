@@ -49,6 +49,7 @@ export function SmartLookup({
   const [results, setResults] = useState<any[]>([])
   const [open, setOpen] = useState(false)
   const [externalValueName, setExternalValueName] = useState<string>('')
+  const [masterDef, setMasterDef] = useState<any>(null)
 
   useEffect(() => {
     if (defaultEntityType && !allowEntityChange) {
@@ -56,8 +57,50 @@ export function SmartLookup({
     }
   }, [defaultEntityType, allowEntityChange])
 
+  // Fetch the actual entity definition from Master Data to ensure contextual isolation
+  useEffect(() => {
+    if (dataSourceType === 'master_data' && defaultEntityType && defaultEntityType !== 'any') {
+      pb.collection('entity_definitions')
+        .getFirstListItem(`slug="${defaultEntityType}"`)
+        .then(setMasterDef)
+        .catch(console.error)
+    }
+  }, [dataSourceType, defaultEntityType])
+
+  // Fetch the label for an already selected value if it's master_data
+  useEffect(() => {
+    if (dataSourceType === 'master_data' && value && !externalValueName) {
+      let isMounted = true
+      pb.collection('master_data_entries')
+        .getOne(value)
+        .then((record) => {
+          if (!isMounted) return
+          const data = record.data || {}
+          let name = ''
+          if (masterDef?.fields?.length > 0) {
+            const firstField = masterDef.fields[0].slug || masterDef.fields[0].name
+            name = data[firstField]
+          }
+          if (!name) {
+            name =
+              data.name ||
+              data.nome ||
+              data.razao_social ||
+              data.title ||
+              data.description ||
+              Object.values(data).find((v) => typeof v === 'string') ||
+              'Registro'
+          }
+          setExternalValueName(String(name))
+        })
+        .catch(() => {})
+      return () => {
+        isMounted = false
+      }
+    }
+  }, [value, dataSourceType, masterDef, externalValueName])
+
   const def = entityDefs.find((d) => d.id === entityType || d.slug === entityType)
-  const resolvedEntityId = def?.id
 
   useEffect(() => {
     if (search.length >= 3) {
@@ -77,12 +120,13 @@ export function SmartLookup({
           setLoading(false)
         }, 400)
         return () => clearTimeout(timer)
-      } else if (dataSourceType === 'master_data' && resolvedEntityId) {
+      } else if (dataSourceType === 'master_data' && masterDef?.id) {
         setLoading(true)
         const timer = setTimeout(async () => {
           try {
+            // Contextual filtering by entity_id and querying the JSON data natively
             const records = await pb.collection('master_data_entries').getList(1, 50, {
-              filter: `entity_id = "${resolvedEntityId}" && data ~ "${search}"`,
+              filter: `entity_id = "${masterDef.id}" && data ~ "${search}"`,
             })
             setResults(
               records.items.map((item) => ({
@@ -139,14 +183,16 @@ export function SmartLookup({
       setResults([])
       setLoading(false)
     }
-  }, [search, entityType, entityRecords, dataSourceType, apiUrl, apiMapping, resolvedEntityId])
+  }, [search, entityType, entityRecords, dataSourceType, apiUrl, apiMapping, masterDef?.id])
 
   const getName = (item: any) => {
     if (dataSourceType === 'external_api') return item.name
     if (dataSourceType === 'master_data') {
-      const firstField = def?.fields?.[0]?.id || def?.fields?.[0]?.name || 'id'
+      const firstField = masterDef?.fields?.[0]?.slug || masterDef?.fields?.[0]?.name
       return (
-        item[firstField] ||
+        (firstField ? item[firstField] : null) ||
+        item.nome ||
+        item.razao_social ||
         item.name ||
         item.title ||
         item.description ||
@@ -161,7 +207,7 @@ export function SmartLookup({
   const getMeta = (item: any) => {
     if (dataSourceType === 'external_api') return item.id
     if (dataSourceType === 'master_data') {
-      const secondField = def?.fields?.[1]?.id || def?.fields?.[1]?.name
+      const secondField = masterDef?.fields?.[1]?.slug || masterDef?.fields?.[1]?.name
       return secondField ? item[secondField] : ''
     }
     if (entityType === 'clients') return item.cnpj || ''
@@ -173,12 +219,19 @@ export function SmartLookup({
   const selectedItem =
     value && dataSourceType === 'internal' ? entityRecords.find((r) => r.id === value) : null
 
+  const placeholderText =
+    dataSourceType === 'external_api'
+      ? 'Pesquisar API Externa...'
+      : dataSourceType === 'master_data'
+        ? `Pesquisar ${masterDef?.name || 'Registro'}...`
+        : `Pesquisar ${def?.name || 'Registro'}...`
+
   const displayValue =
     (dataSourceType === 'external_api' || dataSourceType === 'master_data') && value
       ? externalValueName || value
       : selectedItem
         ? getName(selectedItem)
-        : `Pesquisar ${dataSourceType === 'external_api' ? 'API Externa' : def?.name || 'Registro'}...`
+        : placeholderText
 
   return (
     <div className="flex flex-col gap-2 w-full">
@@ -241,7 +294,7 @@ export function SmartLookup({
                 </div>
               )}
               {search.length >= 3 && !loading && results.length === 0 && (
-                <CommandEmpty>Nenhum registro encontrado.</CommandEmpty>
+                <CommandEmpty>Nenhum resultado encontrado.</CommandEmpty>
               )}
               {search.length >= 3 && !loading && results.length > 0 && (
                 <CommandGroup>
