@@ -2,10 +2,14 @@ import { format } from 'date-fns'
 import { Audit } from '@/types'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { MapPin, CheckCircle, XCircle, FileDown, Printer } from 'lucide-react'
+import { MapPin, CheckCircle, XCircle, FileDown, Mail, Send } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import useAppStore from '@/stores/useAppStore'
 import { useState } from 'react'
+import { generatePDF } from '@/services/exportService'
+import { toast } from '@/hooks/use-toast'
+import pb from '@/lib/pocketbase/client'
 
 interface Props {
   audit: Audit | null
@@ -17,6 +21,9 @@ interface Props {
 export function AuditReportDialog({ audit, onClose, showApproval, onApprove }: Props) {
   const { entityDefs, entityRecords, currentUser, templates } = useAppStore()
   const [isPrinting, setIsPrinting] = useState(false)
+  const [showEmailForm, setShowEmailForm] = useState(false)
+  const [email, setEmail] = useState('')
+  const [isSending, setIsSending] = useState(false)
 
   if (!audit) return null
 
@@ -24,15 +31,30 @@ export function AuditReportDialog({ audit, onClose, showApproval, onApprove }: P
 
   const isSupervisorOrAdmin = currentUser?.role === 'admin' || currentUser?.role === 'supervisor'
 
-  const handlePrint = () => {
-    setIsPrinting(true)
-    const originalTitle = document.title
-    document.title = `Audit_Report_${audit.templateName.replace(/\s+/g, '_')}_${format(new Date(audit.timestamp), 'yyyyMMdd')}`
-    setTimeout(() => {
-      window.print()
-      document.title = originalTitle
-      setIsPrinting(false)
-    }, 100)
+  const handleExportPDF = () => {
+    if (!audit || !template) return
+    generatePDF([audit], templates)
+  }
+
+  const handleSendEmail = async () => {
+    if (!email) return
+    setIsSending(true)
+    try {
+      await pb.send('/backend/v1/send-audit-email', {
+        method: 'POST',
+        body: JSON.stringify({ email, auditId: audit?.id }),
+      })
+      toast({
+        title: 'E-mail enviado',
+        description: `O relatório foi enfileirado para envio a ${email}.`,
+      })
+    } catch (err) {
+      toast({ title: 'Erro', description: 'Falha ao enviar e-mail.', variant: 'destructive' })
+    } finally {
+      setIsSending(false)
+      setShowEmailForm(false)
+      setEmail('')
+    }
   }
 
   const resolveName = (val: any) => {
@@ -111,10 +133,32 @@ export function AuditReportDialog({ audit, onClose, showApproval, onApprove }: P
                 </p>
               )}
             </div>
-            <div className="flex flex-col gap-2 print:hidden">
-              <Button id="btn-export-pdf" variant="outline" size="sm" onClick={handlePrint}>
-                <FileDown className="h-4 w-4 mr-2" /> Exportar PDF
-              </Button>
+            <div className="flex flex-col items-end gap-2 print:hidden">
+              {showEmailForm ? (
+                <div className="flex items-center gap-2 bg-slate-50 p-2 rounded border">
+                  <Input
+                    placeholder="email@destino.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="h-8 w-48 text-sm"
+                  />
+                  <Button size="sm" onClick={handleSendEmail} disabled={isSending}>
+                    {isSending ? 'Enviando...' : <Send className="h-4 w-4" />}
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setShowEmailForm(false)}>
+                    Cancelar
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setShowEmailForm(true)}>
+                    <Mail className="h-4 w-4 mr-2" /> Enviar por E-mail
+                  </Button>
+                  <Button variant="default" size="sm" onClick={handleExportPDF}>
+                    <FileDown className="h-4 w-4 mr-2" /> Baixar PDF
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
 

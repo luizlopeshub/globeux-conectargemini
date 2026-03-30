@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-30T14:46:00.291Z",
+  "generatedAt": "2026-03-30T15:26:55.593Z",
   "collections": [
     {
       "name": "users",
@@ -135,6 +135,12 @@
           "required": true,
           "system": false,
           "collectionRef": "subjects"
+        },
+        {
+          "name": "pdf_settings",
+          "type": "json",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [

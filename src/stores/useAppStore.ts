@@ -62,6 +62,8 @@ let globalState: AppState = {
 
 let listeners: Array<(state: AppState) => void> = []
 
+export const getGlobalState = () => globalState
+
 const performLogout = () => {
   pb.authStore.clear()
   update({

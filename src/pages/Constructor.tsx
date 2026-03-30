@@ -38,6 +38,16 @@ import {
 } from 'lucide-react'
 import { TemplateSearchDialog } from '@/components/constructor/TemplateSearchDialog'
 import { TemplatePreview } from '@/components/constructor/TemplatePreview'
+import { PDFVisualizer } from '@/components/constructor/PDFVisualizer'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 export default function Constructor() {
   const { templates, addTemplate, updateTemplate, currentUser } = useAppStore()
@@ -54,6 +64,14 @@ export default function Constructor() {
   const [fields, setFields] = useState<FormField[]>([])
   const [assignedUsers, setAssignedUsers] = useState<string[]>([])
   const [assignedDepartments, setAssignedDepartments] = useState<string[]>([])
+  const [pdfSettings, setPdfSettings] = useState<any>({
+    primary_color: '#0f172a',
+    layout_mode: 'standard',
+    show_photos: true,
+    logo_url: '',
+    header_text: '',
+    footer_text: '',
+  })
 
   const [activeItem, setActiveItem] = useState<ActiveItem>(null)
   const [mainTab, setMainTab] = useState('campos_blocos')
@@ -105,6 +123,16 @@ export default function Constructor() {
     setFields(loadedFields)
     setAssignedUsers(t.assignedUsers || [])
     setAssignedDepartments(t.assignedDepartments || [])
+    setPdfSettings(
+      t.pdf_settings || {
+        primary_color: '#0f172a',
+        layout_mode: 'standard',
+        show_photos: true,
+        logo_url: '',
+        header_text: '',
+        footer_text: '',
+      },
+    )
     setActiveItem(null)
     setMainTab('campos_blocos')
   }
@@ -118,6 +146,14 @@ export default function Constructor() {
     setAttachments([])
     setBlocks([])
     setFields([])
+    setPdfSettings({
+      primary_color: '#0f172a',
+      layout_mode: 'standard',
+      show_photos: true,
+      logo_url: '',
+      header_text: '',
+      footer_text: '',
+    })
     setActiveItem(null)
     setMainTab('campos_blocos')
   }
@@ -214,6 +250,7 @@ export default function Constructor() {
       fields,
       assignedUsers,
       assignedDepartments,
+      pdf_settings: pdfSettings,
     }
 
     if (editingTemplateId) {
@@ -326,10 +363,10 @@ export default function Constructor() {
               Atribuições
             </TabsTrigger>
             <TabsTrigger
-              value="exportacao"
+              value="design_pdf"
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-2 h-full text-sm font-medium"
             >
-              Opções de Exportação
+              Design do PDF
             </TabsTrigger>
             <TabsTrigger
               value="aprovacao"
@@ -607,18 +644,125 @@ export default function Constructor() {
             </div>
           </TabsContent>
 
-          {/* TAB: EXPORT OPTIONS */}
+          {/* TAB: DESIGN DO PDF */}
           <TabsContent
-            value="exportacao"
+            value="design_pdf"
             forceMount
-            className="data-[state=inactive]:hidden absolute inset-0 m-0 overflow-y-auto p-6 outline-none bg-background"
+            className="data-[state=inactive]:hidden absolute inset-0 m-0 outline-none flex flex-col md:flex-row bg-muted/10 overflow-hidden"
           >
-            <div className="max-w-3xl mx-auto mt-10 bg-card rounded-xl border shadow-sm p-16 text-center animate-in fade-in">
-              <FileText className="h-16 w-16 text-muted-foreground mx-auto mb-6 opacity-20" />
-              <h3 className="text-xl font-bold mb-2">Opções de Exportação</h3>
-              <p className="text-muted-foreground">
-                Defina regras de exportação de PDF e alertas por email. (Em breve)
-              </p>
+            <div className="w-full md:w-80 lg:w-96 bg-card border-r shrink-0 overflow-y-auto p-5 space-y-6 shadow-sm z-10 hidden md:block">
+              <div>
+                <h3 className="text-lg font-bold mb-1">Configurações de PDF</h3>
+                <p className="text-xs text-muted-foreground">
+                  Personalize a identidade visual do relatório gerado.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                    Cor Principal
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="color"
+                      value={pdfSettings.primary_color}
+                      onChange={(e) =>
+                        setPdfSettings({ ...pdfSettings, primary_color: e.target.value })
+                      }
+                      className="w-12 p-1 h-9 cursor-pointer"
+                    />
+                    <Input
+                      type="text"
+                      value={pdfSettings.primary_color}
+                      onChange={(e) =>
+                        setPdfSettings({ ...pdfSettings, primary_color: e.target.value })
+                      }
+                      className="flex-1 font-mono text-sm uppercase"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                    Logo URL
+                  </Label>
+                  <Input
+                    placeholder="https://exemplo.com/logo.png"
+                    value={pdfSettings.logo_url}
+                    onChange={(e) => setPdfSettings({ ...pdfSettings, logo_url: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                    Texto de Cabeçalho
+                  </Label>
+                  <Textarea
+                    placeholder="Nome da Empresa LTDA..."
+                    value={pdfSettings.header_text}
+                    onChange={(e) =>
+                      setPdfSettings({ ...pdfSettings, header_text: e.target.value })
+                    }
+                    className="h-20 resize-none text-sm"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                    Texto de Rodapé
+                  </Label>
+                  <Textarea
+                    placeholder="Documento confidencial..."
+                    value={pdfSettings.footer_text}
+                    onChange={(e) =>
+                      setPdfSettings({ ...pdfSettings, footer_text: e.target.value })
+                    }
+                    className="h-20 resize-none text-sm"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                    Layout das Respostas
+                  </Label>
+                  <Select
+                    value={pdfSettings.layout_mode}
+                    onValueChange={(val) => setPdfSettings({ ...pdfSettings, layout_mode: val })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="standard">Padrão (Lado a Lado)</SelectItem>
+                      <SelectItem value="detailed">Detalhado (Em Colunas)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                  <Label className="text-sm font-medium cursor-pointer" htmlFor="show-photos">
+                    Exibir Fotos no PDF
+                  </Label>
+                  <Switch
+                    id="show-photos"
+                    checked={pdfSettings.show_photos}
+                    onCheckedChange={(c) => setPdfSettings({ ...pdfSettings, show_photos: c })}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-200/50 flex flex-col items-center relative">
+              <div className="absolute top-4 left-4 bg-primary/10 text-primary text-xs font-semibold px-3 py-1 rounded-full md:hidden">
+                Painel lateral oculto em mobile
+              </div>
+              <PDFVisualizer
+                templateName={templateName}
+                settings={pdfSettings}
+                blocks={blocks}
+                fields={fields}
+              />
             </div>
           </TabsContent>
 

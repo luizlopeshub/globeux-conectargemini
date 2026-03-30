@@ -98,6 +98,15 @@ export interface Department {
   updated: string
 }
 
+export interface PdfSettings {
+  logo_url?: string
+  primary_color?: string
+  header_text?: string
+  footer_text?: string
+  layout_mode?: 'standard' | 'detailed'
+  show_photos?: boolean
+}
+
 export interface Template {
   id: string
   name: string
@@ -114,6 +123,7 @@ export interface Template {
     enabled: boolean
     sla_days: number
   }
+  pdf_settings?: PdfSettings
 }
 
 export interface Schedule {

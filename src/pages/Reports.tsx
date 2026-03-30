@@ -21,8 +21,11 @@ import {
 } from '@/components/ui/select'
 import { AuditReportDialog } from '@/components/AuditReportDialog'
 import { format } from 'date-fns'
-import { FileText, FilterX, Download } from 'lucide-react'
+import { FileText, FilterX, Download, FileSpreadsheet } from 'lucide-react'
 import { SmartLookup } from '@/components/SmartLookup'
+import { Checkbox } from '@/components/ui/checkbox'
+import { generatePDF, generateCSV } from '@/services/exportService'
+import { toast } from '@/hooks/use-toast'
 
 export default function Reports() {
   const { audits, templates, entityDefs, entityRecords } = useAppStore()
@@ -37,6 +40,7 @@ export default function Reports() {
   const [status, setStatus] = useState('all')
   const [selectedAudit, setSelectedAudit] = useState<any>(null)
   const [visibleCount, setVisibleCount] = useState(20)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (initialSearchDoc) setSearchDoc(initialSearchDoc)
@@ -78,6 +82,37 @@ export default function Reports() {
     return String(val)
   }
 
+  const toggleSelectAll = () => {
+    if (selectedIds.size === paginated.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(paginated.map((a) => a.id)))
+    }
+  }
+
+  const toggleSelect = (id: string) => {
+    const newSet = new Set(selectedIds)
+    if (newSet.has(id)) newSet.delete(id)
+    else newSet.add(id)
+    setSelectedIds(newSet)
+  }
+
+  const handleExportPDF = () => {
+    const selected = audits.filter((a) => selectedIds.has(a.id))
+    if (selected.length === 0) return
+    generatePDF(selected, templates)
+    toast({ title: 'Exportação PDF Iniciada' })
+    setSelectedIds(new Set())
+  }
+
+  const handleExportCSV = () => {
+    const selected = audits.filter((a) => selectedIds.has(a.id))
+    if (selected.length === 0) return
+    generateCSV(selected, templates)
+    toast({ title: 'Exportação CSV Iniciada' })
+    setSelectedIds(new Set())
+  }
+
   const handleClear = () => {
     setSelectedTemplate('all')
     setDateFrom('')
@@ -97,8 +132,15 @@ export default function Reports() {
             Motor de busca avançado por integridade relacional.
           </p>
         </div>
-        <Button variant="outline" className="gap-2">
-          <Download className="h-4 w-4" /> Exportar
+        <Button
+          variant="outline"
+          className="gap-2"
+          onClick={() => {
+            generateCSV(filtered, templates)
+            toast({ title: 'Exportando todos os resultados filtrados (CSV)' })
+          }}
+        >
+          <Download className="h-4 w-4" /> Exportar Tudo (CSV)
         </Button>
       </div>
 
@@ -168,6 +210,13 @@ export default function Reports() {
         <Table>
           <TableHeader className="bg-muted/50">
             <TableRow>
+              <TableHead className="w-12 text-center">
+                <Checkbox
+                  checked={paginated.length > 0 && selectedIds.size === paginated.length}
+                  onCheckedChange={toggleSelectAll}
+                  aria-label="Selecionar todos"
+                />
+              </TableHead>
               <TableHead>Documento / REF</TableHead>
               <TableHead>Data</TableHead>
               <TableHead>Checklist</TableHead>
@@ -189,7 +238,14 @@ export default function Reports() {
                 .slice(0, 2)
                 .join(' / ')
               return (
-                <TableRow key={a.id}>
+                <TableRow key={a.id} className={selectedIds.has(a.id) ? 'bg-primary/5' : ''}>
+                  <TableCell className="text-center">
+                    <Checkbox
+                      checked={selectedIds.has(a.id)}
+                      onCheckedChange={() => toggleSelect(a.id)}
+                      aria-label={`Selecionar ${a.id}`}
+                    />
+                  </TableCell>
                   <TableCell className="font-mono text-xs">{a.id}</TableCell>
                   <TableCell>{format(new Date(a.timestamp), 'dd/MM/yyyy')}</TableCell>
                   <TableCell className="font-medium">{a.templateName}</TableCell>
@@ -204,7 +260,7 @@ export default function Reports() {
             })}
             {paginated.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                   Nenhum registro encontrado para estes filtros.
                 </TableCell>
               </TableRow>
@@ -219,6 +275,34 @@ export default function Reports() {
           </div>
         )}
       </div>
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-card border shadow-xl rounded-full px-6 py-3 flex items-center gap-4 z-50 animate-in slide-in-from-bottom-5">
+          <span className="text-sm font-semibold whitespace-nowrap px-2">
+            {selectedIds.size} selecionado(s)
+          </span>
+          <div className="h-6 w-px bg-border"></div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSelectedIds(new Set())}
+            className="text-muted-foreground"
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={handleExportPDF}
+            className="gap-2 bg-slate-900"
+          >
+            <FileText className="h-4 w-4" /> Exportar (PDF)
+          </Button>
+          <Button variant="secondary" size="sm" onClick={handleExportCSV} className="gap-2">
+            <FileSpreadsheet className="h-4 w-4" /> Gerar (CSV)
+          </Button>
+        </div>
+      )}
+
       <AuditReportDialog
         audit={selectedAudit}
         onClose={() => setSelectedAudit(null)}
