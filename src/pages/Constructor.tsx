@@ -40,13 +40,15 @@ import {
   ChevronDown,
   Paperclip,
   X,
+  Copy,
 } from 'lucide-react'
 
 export default function Constructor() {
   const { templates, addTemplate, updateTemplate, currentUser } = useAppStore()
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null)
+  const [hasLoadedInitial, setHasLoadedInitial] = useState(false)
 
-  const [templateName, setTemplateName] = useState('Novo Checklist')
+  const [templateName, setTemplateName] = useState('')
   const [subject, setSubject] = useState('')
   const [description, setDescription] = useState('')
   const [attachments, setAttachments] = useState<string[]>([])
@@ -66,10 +68,11 @@ export default function Constructor() {
   }, [])
 
   useEffect(() => {
-    if (!editingTemplateId && templates.length > 0 && fields.length === 0) {
+    if (!hasLoadedInitial && templates.length > 0) {
       loadTemplate(templates[0])
+      setHasLoadedInitial(true)
     }
-  }, [templates, editingTemplateId, fields.length])
+  }, [templates, hasLoadedInitial])
 
   if (currentUser?.role !== 'admin') {
     return (
@@ -103,14 +106,20 @@ export default function Constructor() {
 
   const createNewTemplate = () => {
     setEditingTemplateId(null)
-    setTemplateName('Novo Checklist')
+    setTemplateName('')
     setSubject('')
     setDescription('')
     setAttachments([])
-    setBlocks([{ id: `b_${generateId()}`, name: 'Bloco 1: Cadastro' }])
+    setBlocks([])
     setFields([])
     setActiveItem(null)
     setMainTab('campos_blocos')
+  }
+
+  const handleClone = () => {
+    setEditingTemplateId(null)
+    setTemplateName((prev) => `${prev || 'Checklist'} - Cópia`)
+    toast({ title: 'Template clonado', description: 'Você está editando uma cópia não salva.' })
   }
 
   const handleAddBlock = () => {
@@ -234,7 +243,7 @@ export default function Constructor() {
             <SelectContent>
               <SelectItem value="new" className="font-semibold text-primary">
                 <span className="flex items-center gap-2">
-                  <Plus className="h-4 w-4" /> Criar Novo...
+                  <Plus className="h-4 w-4" /> Novo Template
                 </span>
               </SelectItem>
               {templates.map((t) => (
@@ -255,7 +264,12 @@ export default function Constructor() {
           />
         </div>
 
-        <div className="flex items-center justify-end w-full sm:w-auto shrink-0">
+        <div className="flex items-center justify-end w-full sm:w-auto shrink-0 gap-2">
+          {editingTemplateId && (
+            <Button variant="outline" onClick={handleClone} size="sm" className="gap-2 shadow-sm">
+              <Copy className="h-4 w-4" /> Clonar Template
+            </Button>
+          )}
           <Button onClick={handleSave} size="sm" className="gap-2 shadow-sm">
             <Save className="h-4 w-4" /> Salvar
           </Button>
