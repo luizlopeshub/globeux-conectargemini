@@ -139,8 +139,9 @@ export default function Constructor() {
   }
 
   const handleSave = () => {
-    if (!templateName || blocks.length === 0) {
-      return toast({ title: 'Nome e pelo menos 1 bloco são obrigatórios', variant: 'destructive' })
+    if (!templateName) {
+      setMainTab('campos_blocos')
+      return toast({ title: 'O Nome do checklist é obrigatório', variant: 'destructive' })
     }
     if (!subject) {
       setMainTab('campos_blocos')
@@ -148,6 +149,17 @@ export default function Constructor() {
         title: 'O campo Assunto é obrigatório nas configurações gerais',
         variant: 'destructive',
       })
+    }
+    if (!description) {
+      setMainTab('campos_blocos')
+      return toast({
+        title: 'O campo Descrição é obrigatório nas configurações gerais',
+        variant: 'destructive',
+      })
+    }
+    if (blocks.length === 0) {
+      setMainTab('campos_blocos')
+      return toast({ title: 'Pelo menos 1 bloco é obrigatório', variant: 'destructive' })
     }
 
     const tmplData = {
@@ -307,6 +319,16 @@ export default function Constructor() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                        Nome <span className="text-destructive">*</span>
+                      </label>
+                      <Input
+                        value={templateName}
+                        onChange={(e) => setTemplateName(e.target.value)}
+                        placeholder="Ex: Inspeção de Recebimento de Carga"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                         Assunto <span className="text-destructive">*</span>
                       </label>
                       <SubjectSelect
@@ -315,17 +337,17 @@ export default function Constructor() {
                         subjects={subjectsList}
                       />
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                        Descrição
-                      </label>
-                      <Textarea
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        placeholder="Explique a função deste checklist para os operadores..."
-                        className="resize-y h-[40px] min-h-[40px]"
-                      />
-                    </div>
+                  </div>
+                  <div className="space-y-2 mt-6">
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                      Descrição <span className="text-destructive">*</span>
+                    </label>
+                    <Textarea
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Explique a função deste checklist para os operadores..."
+                      className="resize-y h-[60px] min-h-[60px]"
+                    />
                   </div>
 
                   <div className="space-y-3 mt-6 pt-6 border-t">
