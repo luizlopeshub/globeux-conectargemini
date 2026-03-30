@@ -27,16 +27,20 @@ import {
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { generateId } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
-import { Plus, Pencil, ShieldAlert } from 'lucide-react'
+import { Plus, Pencil, ShieldAlert, Loader2 } from 'lucide-react'
 import { User } from '@/types'
+import pb from '@/lib/pocketbase/client'
+import { extractFieldErrors, getErrorMessage, type FieldErrors } from '@/lib/pocketbase/errors'
 
 const DEPARTMENTS = ['Nenhum', 'Recebimento', 'Expedição', 'Químicos', 'Qualidade']
 
 export default function Users() {
-  const { users, addUser, updateUser, currentUser } = useAppStore()
+  const { users, currentUser, fetchInitialData } = useAppStore()
   const [editingUser, setEditingUser] = useState<Partial<User> | null>(null)
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
+  const [isLoading, setIsLoading] = useState(false)
 
   if (currentUser?.role !== 'admin') {
     return (
@@ -47,22 +51,69 @@ export default function Users() {
     )
   }
 
-  const handleSave = () => {
-    if (!editingUser?.name || !editingUser?.email)
-      return toast({ title: 'Preencha os campos obrigatórios', variant: 'destructive' })
-
-    const dept = editingUser.department === 'Nenhum' ? undefined : editingUser.department
-
-    if (editingUser.id) {
-      updateUser(editingUser.id, { ...editingUser, department: dept })
-    } else {
-      addUser({
-        ...editingUser,
-        department: dept,
-        avatar: `https://img.usecurling.com/ppl/thumbnail?seed=${generateId()}`,
-      })
+  const getAvatarUrl = (user: Partial<User>) => {
+    if (user?.avatar && typeof user.avatar === 'string') {
+      if (user.avatar.startsWith('http')) return user.avatar
+      if (user.id)
+        return `${import.meta.env.VITE_POCKETBASE_URL}/api/files/users/${user.id}/${user.avatar}?thumb=100x100`
     }
-    setEditingUser(null)
+    return `https://img.usecurling.com/ppl/thumbnail?seed=${user?.id || user?.name || 'default'}`
+  }
+
+  const handleSave = async () => {
+    setFieldErrors({})
+    if (!editingUser?.name || !editingUser?.email) {
+      return toast({ title: 'Preencha os campos obrigatórios', variant: 'destructive' })
+    }
+
+    setIsLoading(true)
+    try {
+      const dept = editingUser.department === 'Nenhum' ? '' : editingUser.department
+
+      const formData = new FormData()
+      formData.append('name', editingUser.name)
+      formData.append('email', editingUser.email)
+      formData.append('role', editingUser.role || 'operator')
+      formData.append('department', dept || '')
+
+      if (avatarFile) {
+        formData.append('avatar', avatarFile)
+      } else if (!editingUser.id) {
+        formData.append('avatar', '')
+      }
+
+      if (editingUser.id) {
+        await pb.collection('users').update(editingUser.id, formData)
+        toast({ title: 'Usuário atualizado com sucesso' })
+      } else {
+        formData.append('password', 'Mudar@123')
+        formData.append('passwordConfirm', 'Mudar@123')
+        await pb.collection('users').create(formData)
+        toast({ title: 'Usuário criado com sucesso' })
+      }
+
+      setEditingUser(null)
+      setAvatarFile(null)
+      if (fetchInitialData) await fetchInitialData()
+    } catch (err) {
+      const errors = extractFieldErrors(err)
+      if (Object.keys(errors).length > 0) {
+        setFieldErrors(errors)
+        toast({
+          title: 'Erro de validação',
+          description: 'Verifique os campos destacados.',
+          variant: 'destructive',
+        })
+      } else {
+        toast({
+          title: 'Erro ao salvar',
+          description: getErrorMessage(err),
+          variant: 'destructive',
+        })
+      }
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -96,7 +147,7 @@ export default function Users() {
               <TableRow key={user.id}>
                 <TableCell className="flex items-center gap-3">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={user.avatar} />
+                    <AvatarImage src={getAvatarUrl(user)} />
                     <AvatarFallback>{user.name[0]}</AvatarFallback>
                   </Avatar>
                   <span className="font-medium">{user.name}</span>
@@ -128,26 +179,61 @@ export default function Users() {
         </Table>
       </div>
 
-      <Dialog open={!!editingUser} onOpenChange={(o) => !o && setEditingUser(null)}>
+      <Dialog
+        open={!!editingUser}
+        onOpenChange={(o) => {
+          if (!o) {
+            setEditingUser(null)
+            setAvatarFile(null)
+            setFieldErrors({})
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{editingUser?.id ? 'Editar' : 'Novo'} Usuário</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Nome Completo</Label>
+              <Label>Foto de Perfil</Label>
+              <div className="flex items-center gap-4">
+                <Avatar className="h-16 w-16">
+                  <AvatarImage
+                    src={avatarFile ? URL.createObjectURL(avatarFile) : getAvatarUrl(editingUser)}
+                  />
+                  <AvatarFallback>{editingUser?.name?.[0] || 'U'}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setAvatarFile(e.target.files?.[0] || null)}
+                    className={fieldErrors.avatar ? 'border-destructive' : ''}
+                  />
+                  {fieldErrors.avatar && (
+                    <p className="mt-1 text-xs text-destructive">{fieldErrors.avatar}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className={fieldErrors.name ? 'text-destructive' : ''}>Nome Completo</Label>
               <Input
                 value={editingUser?.name || ''}
                 onChange={(e) => setEditingUser((prev) => ({ ...prev!, name: e.target.value }))}
+                className={fieldErrors.name ? 'border-destructive' : ''}
               />
+              {fieldErrors.name && <p className="text-xs text-destructive">{fieldErrors.name}</p>}
             </div>
             <div className="space-y-2">
-              <Label>Email</Label>
+              <Label className={fieldErrors.email ? 'text-destructive' : ''}>Email</Label>
               <Input
                 type="email"
                 value={editingUser?.email || ''}
                 onChange={(e) => setEditingUser((prev) => ({ ...prev!, email: e.target.value }))}
+                className={fieldErrors.email ? 'border-destructive' : ''}
               />
+              {fieldErrors.email && <p className="text-xs text-destructive">{fieldErrors.email}</p>}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -187,10 +273,21 @@ export default function Users() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingUser(null)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setEditingUser(null)
+                setAvatarFile(null)
+                setFieldErrors({})
+              }}
+              disabled={isLoading}
+            >
               Cancelar
             </Button>
-            <Button onClick={handleSave}>Salvar</Button>
+            <Button onClick={handleSave} disabled={isLoading}>
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Salvar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
