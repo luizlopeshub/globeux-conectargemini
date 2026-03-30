@@ -17,31 +17,12 @@ interface Props {
 }
 
 export function ConfigPanel({ subjectId, assignedUsers, assignedDepartments, onChange }: Props) {
-  const { users, departments, subjects } = useAppStore()
+  const { users, departments } = useAppStore()
   const operators = users.filter((u) => u.role === 'operator')
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 pb-6">
-      <div className="space-y-2 pb-4">
-        <h3 className="font-medium text-sm">Assunto (Obrigatório)</h3>
-        <Select
-          value={subjectId || ''}
-          onValueChange={(val) => onChange(assignedUsers, assignedDepartments, val)}
-        >
-          <SelectTrigger className="w-full bg-white">
-            <SelectValue placeholder="Selecione o assunto" />
-          </SelectTrigger>
-          <SelectContent>
-            {subjects.map((s) => (
-              <SelectItem key={s.id} value={s.id}>
-                {s.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="space-y-2 border-t pt-4">
+      <div className="space-y-2 pt-2">
         <h3 className="font-medium text-sm">Atribuir a Departamentos</h3>
         <p className="text-xs text-muted-foreground mb-2">
           Qualquer operador nestes departamentos verá o checklist.
