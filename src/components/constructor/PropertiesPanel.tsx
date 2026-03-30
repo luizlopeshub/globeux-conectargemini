@@ -11,7 +11,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { useState, useEffect } from 'react'
+import pb from '@/lib/pocketbase/client'
 import useAppStore from '@/stores/useAppStore'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface Props {
   activeItem: ActiveItem
@@ -29,6 +32,25 @@ export function PropertiesPanel({
   handleUpdateBlock,
 }: Props) {
   const { entityDefs } = useAppStore()
+  const [masterEntities, setMasterEntities] = useState<any[]>([])
+  const [loadingEntities, setLoadingEntities] = useState(false)
+
+  const activeField =
+    activeItem?.type === 'field' ? fields.find((f) => f.id === activeItem.id) : undefined
+
+  useEffect(() => {
+    if (
+      activeField?.type === 'lookup' &&
+      (!activeField.dataSourceType || activeField.dataSourceType === 'master_data')
+    ) {
+      setLoadingEntities(true)
+      pb.collection('entity_definitions')
+        .getFullList()
+        .then((res) => setMasterEntities(res))
+        .catch(console.error)
+        .finally(() => setLoadingEntities(false))
+    }
+  }, [activeField?.type, activeField?.dataSourceType])
 
   if (!activeItem) return null
 
@@ -89,7 +111,6 @@ export function PropertiesPanel({
     )
   }
 
-  const activeField = fields.find((f) => f.id === activeItem.id)
   if (!activeField) return null
 
   return (
@@ -194,24 +215,73 @@ export function PropertiesPanel({
             <div className="space-y-2">
               <Label>Origem dos Dados</Label>
               <Select
-                value={activeField.dataSourceType || 'internal'}
-                onValueChange={(val: 'internal' | 'external_api') =>
-                  handleUpdateField(activeField.id, { dataSourceType: val })
-                }
+                value={activeField.dataSourceType || 'master_data'}
+                onValueChange={(val: 'internal' | 'external_api' | 'master_data') => {
+                  const updates: Partial<FormField> = { dataSourceType: val }
+                  if (val === 'master_data') {
+                    updates.settings = { ...activeField.settings, source: 'master_data' }
+                  }
+                  handleUpdateField(activeField.id, updates)
+                }}
               >
                 <SelectTrigger className="bg-white">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="master_data">Dados Mestre</SelectItem>
                   <SelectItem value="internal">Banco de Dados Interno</SelectItem>
                   <SelectItem value="external_api">API Externa (Ex: Receita, Correios)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            {(!activeField.dataSourceType || activeField.dataSourceType === 'internal') && (
+            {(!activeField.dataSourceType || activeField.dataSourceType === 'master_data') && (
               <div className="space-y-2">
                 <Label>Tipo de Entidade Restrita</Label>
+                {loadingEntities ? (
+                  <Skeleton className="h-10 w-full" />
+                ) : (
+                  <Select
+                    value={
+                      activeField.settings?.entitySlug || activeField.lookupEntitySlug || 'any'
+                    }
+                    onValueChange={(val) => {
+                      const slug = val === 'any' ? undefined : val
+                      handleUpdateField(activeField.id, {
+                        lookupEntitySlug: slug,
+                        settings: {
+                          ...activeField.settings,
+                          entitySlug: slug,
+                          source: 'master_data',
+                        },
+                      })
+                    }}
+                  >
+                    <SelectTrigger className="bg-white">
+                      <SelectValue placeholder="Selecione..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="any">Qualquer (Usuário escolhe na hora)</SelectItem>
+                      {masterEntities.length === 0 ? (
+                        <SelectItem value="empty" disabled>
+                          Nenhuma entidade definida
+                        </SelectItem>
+                      ) : (
+                        masterEntities.map((def) => (
+                          <SelectItem key={def.slug} value={def.slug}>
+                            {def.name}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            )}
+
+            {activeField.dataSourceType === 'internal' && (
+              <div className="space-y-2">
+                <Label>Tabela Interna (Legado)</Label>
                 <Select
                   value={activeField.lookupSource || 'any'}
                   onValueChange={(val) =>
@@ -224,7 +294,7 @@ export function PropertiesPanel({
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="any">Qualquer (Usuário escolhe na hora)</SelectItem>
+                    <SelectItem value="any">Qualquer</SelectItem>
                     {entityDefs.map((def) => (
                       <SelectItem key={def.id} value={def.id}>
                         {def.name}

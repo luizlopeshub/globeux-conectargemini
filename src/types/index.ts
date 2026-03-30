@@ -59,9 +59,14 @@ export interface FormField {
   hardValidationMessage?: string
   lookupSource?: string
   triggers?: Array<'require_photo' | 'create_action_plan' | 'send_notification'>
-  dataSourceType?: 'internal' | 'external_api'
+  dataSourceType?: 'internal' | 'external_api' | 'master_data'
   apiUrl?: string
   apiMapping?: string
+  lookupEntitySlug?: string
+  settings?: {
+    entitySlug?: string
+    source?: string
+  }
 }
 
 export interface FormBlock {
