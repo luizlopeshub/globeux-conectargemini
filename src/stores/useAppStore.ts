@@ -136,11 +136,7 @@ export default function useAppStore() {
 
       try {
         // Hydration logic: explicitly verify user session on server
-        try {
-          await pb.collection('users').authRefresh()
-        } catch (authErr) {
-          throw authErr
-        }
+        await pb.collection('users').authRefresh()
 
         const currentUserRole = pb.authStore.record?.role || 'operator'
         const isAdmin = currentUserRole === 'admin'
