@@ -4,20 +4,27 @@ import {
   Type,
   Hash,
   ListFilter,
-  CheckSquare,
+  SquareCheckBig,
   MapPin,
   Camera,
   Signature,
   Calculator,
   Database,
+  Plus,
 } from 'lucide-react'
 
-export function Toolbox({ onAdd }: { onAdd: (t: FieldType) => void }) {
+export function Toolbox({
+  onAdd,
+  onAddBlock,
+}: {
+  onAdd: (t: FieldType) => void
+  onAddBlock: () => void
+}) {
   const tools: { type: FieldType; icon: any; label: string }[] = [
     { type: 'text', icon: Type, label: 'Texto Curto' },
     { type: 'number', icon: Hash, label: 'Número' },
     { type: 'radio', icon: ListFilter, label: 'Seleção Única' },
-    { type: 'checkbox', icon: CheckSquare, label: 'Múltipla Escolha' },
+    { type: 'checkbox', icon: SquareCheckBig, label: 'Múltipla Escolha' },
     { type: 'lookup', icon: Database, label: 'Seleção de Cadastro' },
     { type: 'gps', icon: MapPin, label: 'Localização GPS' },
     { type: 'camera', icon: Camera, label: 'Foto / Câmera' },
@@ -26,12 +33,20 @@ export function Toolbox({ onAdd }: { onAdd: (t: FieldType) => void }) {
   ]
 
   return (
-    <div className="space-y-2 pb-6">
+    <div className="flex flex-wrap items-center gap-2">
+      <Button onClick={onAddBlock} variant="default" size="sm" className="gap-2 shrink-0 shadow-sm">
+        <Plus className="h-4 w-4" />
+        Adicionar Bloco
+      </Button>
+
+      <div className="h-6 w-px bg-border mx-1 shrink-0 hidden sm:block" />
+
       {tools.map((tool) => (
         <Button
           key={tool.type}
           variant="outline"
-          className="w-full justify-start gap-3 bg-background hover:bg-muted"
+          size="sm"
+          className="gap-2 bg-background hover:bg-muted shrink-0 shadow-sm"
           onClick={() => onAdd(tool.type)}
         >
           <tool.icon className="h-4 w-4 text-primary" />
