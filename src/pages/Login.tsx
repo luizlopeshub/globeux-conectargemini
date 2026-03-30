@@ -54,9 +54,9 @@ export default function Login() {
               <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm text-primary">
                 <strong>Credenciais de acesso:</strong>
                 <br />
-                Email: admin@logiaudit.com
+                Email: luiz@globexmultimodal.com.br
                 <br />
-                Senha: admin123456
+                Senha: securepassword123
               </div>
 
               <div className="space-y-2">
@@ -64,7 +64,7 @@ export default function Login() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="admin@logiaudit.com"
+                  placeholder="luiz@globexmultimodal.com.br"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required

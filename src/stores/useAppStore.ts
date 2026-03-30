@@ -231,6 +231,12 @@ export default function useAppStore() {
         update({ users: [...globalState.users, record as any] })
       }, 'Usuário adicionado com sucesso!')
     },
+    updateUser: async (id: string, u: Partial<User>) => {
+      await withLoading(async () => {
+        const record = await pb.collection('users').update(id, u)
+        update({ users: globalState.users.map((x) => (x.id === id ? (record as any) : x)) })
+      }, 'Usuário atualizado com sucesso!')
+    },
 
     addTemplate: async (t: Partial<Template>) => {
       await withLoading(async () => {

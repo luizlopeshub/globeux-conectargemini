@@ -35,7 +35,7 @@ import { User } from '@/types'
 const DEPARTMENTS = ['Nenhum', 'Recebimento', 'Expedição', 'Químicos', 'Qualidade']
 
 export default function Users() {
-  const { users, setUsers, currentUser } = useAppStore()
+  const { users, addUser, updateUser, currentUser } = useAppStore()
   const [editingUser, setEditingUser] = useState<Partial<User> | null>(null)
 
   if (currentUser?.role !== 'admin') {
@@ -54,24 +54,13 @@ export default function Users() {
     const dept = editingUser.department === 'Nenhum' ? undefined : editingUser.department
 
     if (editingUser.id) {
-      setUsers(
-        users.map((u) =>
-          u.id === editingUser.id ? ({ ...u, ...editingUser, department: dept } as User) : u,
-        ),
-      )
-      toast({ title: 'Usuário atualizado com sucesso' })
+      updateUser(editingUser.id, { ...editingUser, department: dept })
     } else {
-      setUsers([
-        ...users,
-        {
-          ...editingUser,
-          id: `u_${generateId()}`,
-          role: editingUser.role || 'operator',
-          department: dept,
-          avatar: `https://img.usecurling.com/ppl/thumbnail?seed=${generateId()}`,
-        } as User,
-      ])
-      toast({ title: 'Usuário criado com sucesso' })
+      addUser({
+        ...editingUser,
+        department: dept,
+        avatar: `https://img.usecurling.com/ppl/thumbnail?seed=${generateId()}`,
+      })
     }
     setEditingUser(null)
   }
