@@ -137,7 +137,21 @@ export default function useAppStore() {
       try {
         // Hydration logic: explicitly verify user session on server
         await pb.collection('users').authRefresh()
+      } catch (err: any) {
+        console.error('Auth refresh error:', err)
+        if (err.status === 401 || err.status === 403 || err.status === 404) {
+          performLogout()
+          toast({
+            title: 'Sessão Inválida',
+            description: 'Sua sessão expirou ou é inválida. Por favor, faça login novamente.',
+            variant: 'destructive',
+          })
+          update({ isInitializing: false })
+          return
+        }
+      }
 
+      try {
         const currentUserRole = pb.authStore.record?.role || 'operator'
         const isAdmin = currentUserRole === 'admin'
 
@@ -201,7 +215,7 @@ export default function useAppStore() {
         })
       } catch (err: any) {
         console.error('Initial data fetch error:', err)
-        if (err.status === 401 || err.status === 403 || err.status === 400 || err.status === 404) {
+        if (err.status === 401 || err.status === 403) {
           performLogout()
           toast({
             title: 'Sessão Inválida',
@@ -210,9 +224,9 @@ export default function useAppStore() {
           })
         } else {
           toast({
-            title: 'Erro de Conexão',
-            description: getErrorMessage(err),
-            variant: 'destructive',
+            title: 'Aviso',
+            description: 'Alguns dados podem não ter sido carregados corretamente.',
+            variant: 'default',
           })
         }
       } finally {
