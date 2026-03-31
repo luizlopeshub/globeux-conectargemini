@@ -7,7 +7,8 @@ import { Card } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { toast } from '@/hooks/use-toast'
 import { generateId } from '@/lib/utils'
-import { Send, ArrowRight, ArrowLeft, CheckCircle2, AlertOctagon } from 'lucide-react'
+import { Send, ArrowRight, ArrowLeft, CheckCircle2, AlertOctagon, Loader2 } from 'lucide-react'
+import pb from '@/lib/pocketbase/client'
 
 export default function Executor() {
   const { id } = useParams()
@@ -22,6 +23,7 @@ export default function Executor() {
   const [currentStep, setCurrentStep] = useState(0)
   const [savingStatus, setSavingStatus] = useState('')
   const [uploadingCount, setUploadingCount] = useState(0)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleUploadStart = () => setUploadingCount((prev) => prev + 1)
   const handleUploadEnd = () => setUploadingCount((prev) => Math.max(0, prev - 1))
@@ -83,13 +85,101 @@ export default function Executor() {
     return errors
   }, [answers, template])
 
-  const hasHardErrors = Object.keys(hardValidationErrors).length > 0
+  const evaluatedRules = useMemo(() => {
+    const state = {
+      hidden: new Set<string>(),
+      shownTargets: new Set<string>(),
+      shownActive: new Set<string>(),
+      required: new Set<string>(),
+      alerts: {} as Record<string, string>,
+      blocks: [] as string[],
+      actionPlans: [] as { fieldId: string; responsibleId: string; description: string }[],
+      escalate: false,
+    }
+
+    if (!template) return state
+
+    template.fields.forEach((f) => {
+      if (!f.logicRules) return
+      f.logicRules.forEach((rule) => {
+        if (rule.action === 'SHOW_FIELD' && rule.targetId) {
+          state.shownTargets.add(rule.targetId)
+        }
+
+        const ans = answers[rule.sourceFieldId || f.id]
+        let isMatch = false
+        if (ans !== undefined && ans !== null && ans !== '') {
+          switch (rule.condition) {
+            case 'equals':
+              isMatch = String(ans).toLowerCase() === String(rule.value).toLowerCase()
+              break
+            case 'not_equals':
+              isMatch = String(ans).toLowerCase() !== String(rule.value).toLowerCase()
+              break
+            case 'greater_than':
+              isMatch = Number(ans) > Number(rule.value)
+              break
+            case 'less_than':
+              isMatch = Number(ans) < Number(rule.value)
+              break
+          }
+        } else {
+          if (rule.condition === 'not_equals' && rule.value) isMatch = true
+        }
+
+        if (isMatch) {
+          switch (rule.action) {
+            case 'HIDE_FIELD':
+              if (rule.targetId) state.hidden.add(rule.targetId)
+              break
+            case 'SHOW_FIELD':
+              if (rule.targetId) state.shownActive.add(rule.targetId)
+              break
+            case 'SET_REQUIRED':
+              if (rule.targetId) state.required.add(rule.targetId)
+              break
+            case 'DISPLAY_ALERT':
+              state.alerts[f.id] = rule.message || 'Atenção necessária com base na sua resposta.'
+              break
+            case 'BLOCK_SUBMIT':
+              state.blocks.push(rule.message || 'Submissão bloqueada por uma regra de negócio.')
+              break
+            case 'CREATE_ACTION_PLAN':
+              if (rule.responsibleId) {
+                state.actionPlans.push({
+                  fieldId: f.id,
+                  responsibleId: rule.responsibleId,
+                  description: `Plano gerado automaticamente por gatilho da resposta: ${ans}`,
+                })
+              }
+              break
+            case 'ESCALATE_APPROVAL':
+              state.escalate = true
+              break
+          }
+        }
+      })
+    })
+    return state
+  }, [answers, template])
+
+  const hasHardErrors =
+    Object.keys(hardValidationErrors).length > 0 || evaluatedRules.blocks.length > 0
 
   if (!template) return <div className="p-8 text-center">Template não encontrado.</div>
   if (!currentUser) return <div className="p-8 text-center">Usuário não autenticado.</div>
 
   const currentBlock = visibleBlocks[currentStep]
+
   const currentFields = template.fields.filter((f) => f.blockId === currentBlock?.id)
+
+  const visibleCurrentFields = currentFields.filter((f) => {
+    if (f.logicDependsOn && answers[f.logicDependsOn] !== f.logicValue) return false
+    if (evaluatedRules.hidden.has(f.id)) return false
+    if (evaluatedRules.shownTargets.has(f.id) && !evaluatedRules.shownActive.has(f.id)) return false
+    return true
+  })
+
   const progressPercent = visibleBlocks.length
     ? ((currentStep + 1) / visibleBlocks.length) * 100
     : 0
@@ -99,16 +189,17 @@ export default function Executor() {
     if (hasHardErrors) {
       toast({
         title: 'Bloqueio de Validação',
-        description: 'Corrija os campos em vermelho antes de prosseguir.',
+        description:
+          evaluatedRules.blocks[0] || 'Corrija os campos em vermelho antes de prosseguir.',
         variant: 'destructive',
       })
       return false
     }
 
     let isValid = true
-    for (const f of currentFields) {
-      if (f.logicDependsOn && answers[f.logicDependsOn] !== f.logicValue) continue
-      if (f.required && !answers[f.id]) {
+    for (const f of visibleCurrentFields) {
+      const isRequired = f.required || evaluatedRules.required.has(f.id)
+      if (isRequired && !answers[f.id]) {
         toast({ variant: 'destructive', description: `Preencha o campo obrigatório: ${f.label}` })
         isValid = false
         break
@@ -126,28 +217,50 @@ export default function Executor() {
     setCurrentStep((s) => Math.max(0, s - 1))
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validateCurrentBlock()) return
 
-    // Check all fields for required validation before final submit
+    if (evaluatedRules.blocks.length > 0) {
+      return toast({
+        title: 'Submissão Bloqueada',
+        description: evaluatedRules.blocks[0],
+        variant: 'destructive',
+      })
+    }
+
     const missing = template.fields.find((f) => {
-      if (f.logicDependsOn && answers[f.logicDependsOn] !== f.logicValue) return false
-      // Only check fields in visible blocks
       const blockIsVisible = visibleBlocks.some((b) => b.id === f.blockId)
       if (!blockIsVisible) return false
-      if (f.required && !answers[f.id]) return true
+
+      if (f.logicDependsOn && answers[f.logicDependsOn] !== f.logicValue) return false
+      if (evaluatedRules.hidden.has(f.id)) return false
+      if (evaluatedRules.shownTargets.has(f.id) && !evaluatedRules.shownActive.has(f.id))
+        return false
+
+      const isRequired = f.required || evaluatedRules.required.has(f.id)
+      if (isRequired && !answers[f.id]) return true
       return false
     })
 
     if (missing) {
       return toast({
         title: 'Campos obrigatórios',
-        description: `Existem campos obrigatórios não preenchidos em blocos anteriores.`,
+        description: `Existem campos obrigatórios não preenchidos em passos anteriores.`,
         variant: 'destructive',
       })
     }
 
+    setIsSubmitting(true)
     const newAuditId = `aud_${generateId().substring(0, 8)}`
+
+    const payloadAnswers = {
+      ...answers,
+      _metadata: {
+        escalated: evaluatedRules.escalate,
+        actionPlansCreated: evaluatedRules.actionPlans.length,
+      },
+    }
+
     submitAudit({
       id: newAuditId,
       templateId: template.id,
@@ -158,8 +271,8 @@ export default function Executor() {
       timestamp: new Date().toISOString(),
       status: 'Concluído',
       location: answers['gps_field'] || '-23.5505, -46.6333',
-      answers,
-      approvalStatus: 'Pendente',
+      answers: payloadAnswers,
+      approvalStatus: evaluatedRules.escalate ? 'Pendente' : 'Pendente',
     })
 
     if (taskId) {
@@ -169,8 +282,31 @@ export default function Executor() {
       }
     }
 
-    toast({ title: 'Auditoria Concluída', description: 'Gerando PDF do relatório...' })
+    if (evaluatedRules.actionPlans.length > 0) {
+      toast({ description: 'Gerando planos de ação automáticos...' })
+      for (const plan of evaluatedRules.actionPlans) {
+        try {
+          await pb.collection('action_plans').create({
+            field_id: plan.fieldId,
+            responsible_id: plan.responsibleId,
+            status: 'pending',
+            description: plan.description,
+          })
 
+          await pb.collection('audit_logs').create({
+            user_id: currentUser.id,
+            action: 'CREATE_ACTION_PLAN',
+            entity_name: 'action_plans',
+            payload: plan,
+          })
+        } catch (err) {
+          console.error('Falha ao criar plano de ação:', err)
+        }
+      }
+    }
+
+    setIsSubmitting(false)
+    toast({ title: 'Auditoria Concluída', description: 'Salvando e gerando o relatório final...' })
     navigate('/logs', { state: { autoPrintId: newAuditId } })
   }
 
@@ -195,25 +331,23 @@ export default function Executor() {
       {currentBlock && (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
           <h2 className="text-xl font-semibold border-b pb-2 text-primary">{currentBlock.name}</h2>
-          {currentFields.map((field) => {
-            if (field.logicDependsOn && answers[field.logicDependsOn] !== field.logicValue)
-              return null
-            return (
-              <FieldRenderer
-                key={field.id}
-                field={field}
-                value={answers[field.id]}
-                onChange={(v) => setAnswers((p) => ({ ...p, [field.id]: v }))}
-                allAnswers={answers}
-                error={hardValidationErrors[field.id]}
-                onUploadStart={handleUploadStart}
-                onUploadEnd={handleUploadEnd}
-              />
-            )
-          })}
-          {currentFields.length === 0 && (
+          {visibleCurrentFields.map((field) => (
+            <FieldRenderer
+              key={field.id}
+              field={field}
+              value={answers[field.id]}
+              onChange={(v) => setAnswers((p) => ({ ...p, [field.id]: v }))}
+              allAnswers={answers}
+              error={hardValidationErrors[field.id]}
+              alert={evaluatedRules.alerts[field.id]}
+              dynamicRequired={evaluatedRules.required.has(field.id)}
+              onUploadStart={handleUploadStart}
+              onUploadEnd={handleUploadEnd}
+            />
+          ))}
+          {visibleCurrentFields.length === 0 && (
             <p className="text-muted-foreground italic p-4 text-center">
-              Nenhum campo neste bloco.
+              Nenhum campo visível neste bloco ou logicamente ocultos.
             </p>
           )}
         </div>
@@ -222,14 +356,15 @@ export default function Executor() {
       <Card className="fixed bottom-0 left-0 right-0 p-4 bg-background/95 backdrop-blur-md border-t md:left-[16rem] z-10 flex flex-col shadow-[0_-10px_20px_rgba(0,0,0,0.05)] rounded-none">
         {hasHardErrors && (
           <div className="flex items-center gap-2 text-destructive font-medium text-sm w-full mx-auto max-w-3xl mb-4">
-            <AlertOctagon className="h-4 w-4" /> Submissão Bloqueada (Regra de Negócio)
+            <AlertOctagon className="h-4 w-4" />{' '}
+            {evaluatedRules.blocks[0] || 'Submissão Bloqueada (Regra de Negócio)'}
           </div>
         )}
         <div className="flex justify-between items-center max-w-3xl w-full mx-auto gap-4">
           <Button
             variant="outline"
             onClick={handlePrev}
-            disabled={currentStep === 0}
+            disabled={currentStep === 0 || isSubmitting}
             className="w-32 h-12"
           >
             <ArrowLeft className="h-4 w-4 mr-2" /> Voltar
@@ -243,20 +378,38 @@ export default function Executor() {
           {isLastStep ? (
             <Button
               onClick={handleSubmit}
-              disabled={hasHardErrors || uploadingCount > 0}
-              className="w-48 h-12 bg-[#f59e0b] hover:bg-[#d97706] text-white disabled:bg-muted disabled:text-muted-foreground"
+              disabled={hasHardErrors || uploadingCount > 0 || isSubmitting}
+              className="w-48 h-12 bg-[#f59e0b] hover:bg-[#d97706] text-white disabled:bg-muted disabled:text-muted-foreground transition-all"
             >
-              <Send className="h-4 w-4 mr-2" />{' '}
-              {uploadingCount > 0 ? 'Enviando...' : 'Finalizar e Gerar PDF'}
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Finalizando...
+                </>
+              ) : uploadingCount > 0 ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Enviando Fotos...
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4 mr-2" /> Finalizar
+                </>
+              )}
             </Button>
           ) : (
             <Button
               onClick={handleNext}
-              disabled={hasHardErrors || uploadingCount > 0}
-              className="w-32 h-12"
+              disabled={hasHardErrors || uploadingCount > 0 || isSubmitting}
+              className="w-32 h-12 transition-all"
             >
-              {uploadingCount > 0 ? 'Enviando...' : 'Próximo'}{' '}
-              <ArrowRight className="h-4 w-4 ml-2" />
+              {uploadingCount > 0 ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Upload...
+                </>
+              ) : (
+                <>
+                  Próximo <ArrowRight className="h-4 w-4 ml-2" />
+                </>
+              )}
             </Button>
           )}
         </div>

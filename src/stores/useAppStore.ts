@@ -372,14 +372,12 @@ export default function useAppStore() {
       await withLoading(async () => {
         const record = await pb.collection('subjects').create({ name })
         try {
-          await pb
-            .collection('audit_logs')
-            .create({
-              user_id: pb.authStore.record?.id,
-              action: 'create',
-              entity_name: 'subjects',
-              payload: { name },
-            })
+          await pb.collection('audit_logs').create({
+            user_id: pb.authStore.record?.id,
+            action: 'create',
+            entity_name: 'subjects',
+            payload: { name },
+          })
         } catch (e) {
           console.error(e)
         }
@@ -390,14 +388,12 @@ export default function useAppStore() {
       await withLoading(async () => {
         const record = await pb.collection('subjects').update(id, { name })
         try {
-          await pb
-            .collection('audit_logs')
-            .create({
-              user_id: pb.authStore.record?.id,
-              action: 'update',
-              entity_name: 'subjects',
-              payload: { id, name },
-            })
+          await pb.collection('audit_logs').create({
+            user_id: pb.authStore.record?.id,
+            action: 'update',
+            entity_name: 'subjects',
+            payload: { id, name },
+          })
         } catch (e) {
           console.error(e)
         }
@@ -408,14 +404,12 @@ export default function useAppStore() {
       await withLoading(async () => {
         await pb.collection('subjects').delete(id)
         try {
-          await pb
-            .collection('audit_logs')
-            .create({
-              user_id: pb.authStore.record?.id,
-              action: 'delete',
-              entity_name: 'subjects',
-              payload: { id },
-            })
+          await pb.collection('audit_logs').create({
+            user_id: pb.authStore.record?.id,
+            action: 'delete',
+            entity_name: 'subjects',
+            payload: { id },
+          })
         } catch (e) {
           console.error(e)
         }
@@ -427,14 +421,12 @@ export default function useAppStore() {
       await withLoading(async () => {
         const record = await pb.collection('departments').create({ name })
         try {
-          await pb
-            .collection('audit_logs')
-            .create({
-              user_id: pb.authStore.record?.id,
-              action: 'create',
-              entity_name: 'departments',
-              payload: { name },
-            })
+          await pb.collection('audit_logs').create({
+            user_id: pb.authStore.record?.id,
+            action: 'create',
+            entity_name: 'departments',
+            payload: { name },
+          })
         } catch (e) {
           console.error(e)
         }
@@ -445,14 +437,12 @@ export default function useAppStore() {
       await withLoading(async () => {
         const record = await pb.collection('departments').update(id, { name })
         try {
-          await pb
-            .collection('audit_logs')
-            .create({
-              user_id: pb.authStore.record?.id,
-              action: 'update',
-              entity_name: 'departments',
-              payload: { id, name },
-            })
+          await pb.collection('audit_logs').create({
+            user_id: pb.authStore.record?.id,
+            action: 'update',
+            entity_name: 'departments',
+            payload: { id, name },
+          })
         } catch (e) {
           console.error(e)
         }
@@ -465,14 +455,12 @@ export default function useAppStore() {
       await withLoading(async () => {
         await pb.collection('departments').delete(id)
         try {
-          await pb
-            .collection('audit_logs')
-            .create({
-              user_id: pb.authStore.record?.id,
-              action: 'delete',
-              entity_name: 'departments',
-              payload: { id },
-            })
+          await pb.collection('audit_logs').create({
+            user_id: pb.authStore.record?.id,
+            action: 'delete',
+            entity_name: 'departments',
+            payload: { id },
+          })
         } catch (e) {
           console.error(e)
         }

@@ -5,7 +5,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Camera, MapPin, Edit3, Loader2 } from 'lucide-react'
+import { Camera, MapPin, Edit3, Loader2, AlertTriangle } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import useAppStore from '@/stores/useAppStore'
@@ -18,6 +18,8 @@ interface Props {
   onChange: (val: any) => void
   allAnswers: Record<string, any>
   error?: string
+  alert?: string
+  dynamicRequired?: boolean
   onUploadStart?: () => void
   onUploadEnd?: () => void
 }
@@ -28,6 +30,8 @@ export function FieldRenderer({
   onChange,
   allAnswers,
   error,
+  alert,
+  dynamicRequired,
   onUploadStart,
   onUploadEnd,
 }: Props) {
@@ -271,10 +275,17 @@ export function FieldRenderer({
     >
       <CardContent className="p-5">
         <Label className="text-base font-medium mb-4 block">
-          {field.label} {field.required && <span className="text-destructive">*</span>}
+          {field.label}{' '}
+          {(field.required || dynamicRequired) && <span className="text-destructive">*</span>}
         </Label>
         {renderInput()}
         {error && <p className="text-sm font-medium text-destructive mt-3">{error}</p>}
+        {alert && (
+          <div className="mt-4 p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-md text-sm flex items-start gap-2 animate-in fade-in duration-300">
+            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+            <p className="font-medium leading-relaxed">{alert}</p>
+          </div>
+        )}
       </CardContent>
     </Card>
   )

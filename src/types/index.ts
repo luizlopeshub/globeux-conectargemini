@@ -75,6 +75,7 @@ export interface FormField {
     entitySlug?: string
     source?: string
   }
+  logicRules?: LogicRule[]
 }
 
 export interface FormBlock {
@@ -148,11 +149,33 @@ export interface Task {
   updated: string
 }
 
+export type LogicCondition = 'equals' | 'not_equals' | 'greater_than' | 'less_than'
+export type LogicAction =
+  | 'SHOW_FIELD'
+  | 'HIDE_FIELD'
+  | 'SET_REQUIRED'
+  | 'DISPLAY_ALERT'
+  | 'BLOCK_SUBMIT'
+  | 'CREATE_ACTION_PLAN'
+  | 'CREATE_SCHEDULE'
+  | 'ESCALATE_APPROVAL'
+
+export interface LogicRule {
+  id: string
+  sourceFieldId: string
+  condition: LogicCondition
+  value: any
+  action: LogicAction
+  targetId?: string
+  message?: string
+  responsibleId?: string
+}
+
 export interface ActionPlan {
   id: string
   field_id: string
   responsible_id: string
-  status: 'open' | 'resolved'
+  status: 'open' | 'pending' | 'resolved'
   description: string
   due_date?: string
   created: string
