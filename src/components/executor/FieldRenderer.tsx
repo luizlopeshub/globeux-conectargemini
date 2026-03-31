@@ -5,10 +5,12 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Camera, MapPin, Edit3 } from 'lucide-react'
-import { useMemo } from 'react'
+import { Camera, MapPin, Edit3, Loader2 } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { useParams } from 'react-router-dom'
 import useAppStore from '@/stores/useAppStore'
 import { SmartLookup } from '@/components/SmartLookup'
+import pb from '@/lib/pocketbase/client'
 
 interface Props {
   field: FormField
@@ -20,6 +22,9 @@ interface Props {
 
 export function FieldRenderer({ field, value, onChange, allAnswers, error }: Props) {
   const store = useAppStore()
+  const { id } = useParams()
+  const [isUploading, setIsUploading] = useState(false)
+
   const options = field.options ? field.options.split(',').map((s) => s.trim()) : []
 
   const calcValue = useMemo(() => {
@@ -31,6 +36,44 @@ export function FieldRenderer({ field, value, onChange, allAnswers, error }: Pro
     if (field.calcOperation === 'average') return vals.length ? (sum / vals.length).toFixed(2) : 0
     return sum
   }, [field.type, field.calcOperation, field.calcSourceFields, allAnswers])
+
+  const handleFileUpload = async (file: File) => {
+    setIsUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('images', file)
+
+      let record
+
+      if (id) {
+        try {
+          record = await pb.collection('responses').update(id, formData)
+        } catch (err) {
+          try {
+            const existing = await pb.collection('responses').getFirstListItem(`task_id="${id}"`)
+            record = await pb.collection('responses').update(existing.id, formData)
+          } catch (err2) {
+            console.warn(
+              'Nenhum registro de resposta encontrado, a imagem será salva localmente até o envio.',
+            )
+          }
+        }
+      }
+
+      if (record && record.images && record.images.length > 0) {
+        const fileName = record.images[record.images.length - 1]
+        const url = pb.files.getUrl(record, fileName)
+        onChange(url)
+      } else {
+        onChange(URL.createObjectURL(file))
+      }
+    } catch (error) {
+      console.error('Falha no upload:', error)
+      onChange(URL.createObjectURL(file))
+    } finally {
+      setIsUploading(false)
+    }
+  }
 
   const renderInput = () => {
     switch (field.type) {
@@ -132,9 +175,10 @@ export function FieldRenderer({ field, value, onChange, allAnswers, error }: Pro
             : typeof value === 'string' && value.startsWith('http')
               ? value
               : null
+
         return value && imgUrl ? (
           <div className="relative rounded-md overflow-hidden border">
-            <img src={imgUrl} alt="Captura" className="w-full h-48 object-cover" />
+            <img src={imgUrl} alt="Captura" className="w-full h-48 object-cover bg-slate-50" />
             <Button
               variant="destructive"
               size="sm"
@@ -146,24 +190,35 @@ export function FieldRenderer({ field, value, onChange, allAnswers, error }: Pro
           </div>
         ) : (
           <div className="relative">
-            <input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={(e) => {
-                if (e.target.files && e.target.files[0]) {
-                  onChange(e.target.files[0])
-                }
-              }}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-            />
-            <Button
-              variant="outline"
-              className="h-12 w-full gap-2 bg-white relative z-0"
-              type="button"
-            >
-              <Camera className="h-4 w-4 text-blue-500" /> Tirar Foto ou Escolher Arquivo
-            </Button>
+            {isUploading ? (
+              <div className="h-12 w-full flex items-center justify-center gap-2 bg-slate-50 border rounded-md text-slate-500">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Enviando imagem...</span>
+              </div>
+            ) : (
+              <>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/jpg"
+                  capture="environment"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      handleFileUpload(e.target.files[0])
+                    }
+                  }}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  disabled={isUploading}
+                />
+                <Button
+                  variant="outline"
+                  className="h-12 w-full gap-2 bg-white relative z-0"
+                  type="button"
+                  disabled={isUploading}
+                >
+                  <Camera className="h-4 w-4 text-blue-500" /> Tirar Foto ou Escolher Arquivo
+                </Button>
+              </>
+            )}
           </div>
         )
       }

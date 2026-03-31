@@ -64,15 +64,21 @@ export const generateAuditHTML = (audit: Audit, template: Template) => {
   const photosSection =
     photos.length > 0
       ? `
-    <div style="margin-top: 30px; page-break-before: auto;">
-      <h3 style="color: ${color}; border-bottom: 2px solid ${color}; padding-bottom: 5px; font-size: 16px;">Evidências Fotográficas</h3>
-      <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-top: 15px;">
+    <div style="margin-top: 40px; page-break-before: always;">
+      <h2 style="color: ${color}; border-bottom: 2px solid ${color}; padding-bottom: 8px; font-size: 18px; text-transform: uppercase; letter-spacing: 0.5px;">Evidências Fotográficas</h2>
+      <div style="display: flex; flex-wrap: wrap; margin: -10px; margin-top: 20px;">
         ${photos
           .map(
             (p) => `
-          <div style="width: 45%; break-inside: avoid; margin-bottom: 15px;">
-            <div style="font-size: 12px; font-weight: bold; margin-bottom: 5px; color: #555;">${p.label}</div>
-            <img src="${p.url}" style="width: 100%; max-height: 250px; object-fit: contain; border: 1px solid #ddd; border-radius: 4px; padding: 4px;" />
+          <div style="width: 50%; box-sizing: border-box; padding: 10px; break-inside: avoid;">
+            <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: #fff;">
+              <div style="padding: 8px 12px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; font-size: 13px; font-weight: bold; color: #334155;">
+                ${p.label}
+              </div>
+              <div style="padding: 10px; text-align: center; background: #f1f5f9; min-height: 200px; display: flex; align-items: center; justify-content: center;">
+                <img src="${p.url}" style="max-width: 100%; max-height: 260px; object-fit: contain; border-radius: 4px;" />
+              </div>
+            </div>
           </div>
         `,
           )
