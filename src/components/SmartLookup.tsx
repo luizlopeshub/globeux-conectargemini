@@ -18,7 +18,7 @@ export interface SmartLookupProps {
 }
 
 export function SmartLookup({
-  options,
+  options = [],
   value,
   onChange,
   placeholder = 'Selecione...',
@@ -26,9 +26,19 @@ export function SmartLookup({
   const [open, setOpen] = React.useState(false)
   const [search, setSearch] = React.useState('')
 
-  const filteredOptions = options.filter((opt) =>
-    opt.label.toLowerCase().includes(search.toLowerCase()),
+  const isOptionsLoading = !options
+
+  const filteredOptions = (options || []).filter((opt) =>
+    opt?.label?.toLowerCase().includes(search.toLowerCase()),
   )
+
+  if (isOptionsLoading) {
+    return (
+      <Button variant="outline" className="w-full justify-start text-muted-foreground" disabled>
+        Carregando...
+      </Button>
+    )
+  }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

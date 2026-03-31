@@ -95,13 +95,13 @@ export function AuditReportDialog({ audit, onClose, showApproval, onApprove }: P
 
   const resolveName = (val: any) => {
     if (typeof val === 'string' && val.length > 0) {
-      const record = entityRecords.find((r) => r.id === val)
+      const record = entityRecords?.find((r) => r.id === val)
       if (record) {
-        const def = entityDefs.find((d) => d.id === record.entityId)
-        return record[def?.fields[0]?.id || 'id'] || record.id
+        const def = entityDefs?.find((d) => d.id === record.entityId)
+        return record[def?.fields?.[0]?.id || 'id'] || record.id
       }
     }
-    return String(val)
+    return String(val ?? '')
   }
 
   return (
@@ -210,7 +210,8 @@ export function AuditReportDialog({ audit, onClose, showApproval, onApprove }: P
 
               {template && template.blocks ? (
                 template.blocks.map((block: any) => {
-                  const blockFields = template.fields.filter((f: any) => f.blockId === block.id)
+                  const blockFields =
+                    template.fields?.filter((f: any) => f.blockId === block.id) || []
                   const hasAnswers = blockFields.some((f: any) => audit.answers[f.id] !== undefined)
 
                   if (!hasAnswers) return null
@@ -374,7 +375,7 @@ export function AuditReportDialog({ audit, onClose, showApproval, onApprove }: P
               <SmartLookup
                 options={[
                   { value: audit.operatorId, label: `${audit.operatorName} (Auditor Original)` },
-                  ...users
+                  ...(users || [])
                     .filter((u) => u.id !== audit.operatorId)
                     .map((u) => ({ value: u.id, label: `${u.name} (${u.role})` })),
                 ]}

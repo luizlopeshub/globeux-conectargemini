@@ -216,14 +216,14 @@ export default function useAppStore() {
             taskId: r.task_id || r.expand?.task_id?.id || undefined,
             templateId: r.data?.templateId || '',
             templateName: r.data?.templateName || 'Checklist',
-            operatorId: r.user_id,
+            operatorId: r.user_id || '',
             operatorName: r.expand?.user_id?.name || 'Desconhecido',
             operatorAvatar: r.expand?.user_id?.avatar
               ? pb.files.getUrl(r.expand.user_id, r.expand.user_id.avatar)
               : undefined,
-            timestamp: r.data?.timestamp || r.created,
+            timestamp: r.data?.timestamp || r.created || new Date().toISOString(),
             location: r.data?.location || '',
-            status: r.status,
+            status: r.status || 'completed',
             approvalStatus: r.data?.approvalStatus || 'Pendente',
             answers,
           }
