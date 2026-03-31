@@ -154,6 +154,7 @@ export interface ActionPlan {
   responsible_id: string
   status: 'open' | 'resolved'
   description: string
+  due_date?: string
   created: string
   updated: string
 }

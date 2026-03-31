@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-31T16:01:06.636Z",
+  "generatedAt": "2026-03-31T16:11:20.362Z",
   "collections": [
     {
       "name": "users",
@@ -317,6 +317,12 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "due_date",
+          "type": "date",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": []
