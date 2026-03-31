@@ -34,6 +34,8 @@ export function PropertiesPanel({
   const { entityDefs } = useAppStore()
   const [masterEntities, setMasterEntities] = useState<any[]>([])
   const [loadingEntities, setLoadingEntities] = useState(false)
+  const [tab, setTab] = useState<'geral' | 'logica'>('geral')
+  const [users, setUsers] = useState<any[]>([])
 
   const activeField =
     activeItem?.type === 'field' ? fields.find((f) => f.id === activeItem.id) : undefined
@@ -51,6 +53,10 @@ export function PropertiesPanel({
         .finally(() => setLoadingEntities(false))
     }
   }, [activeField?.type, activeField?.dataSourceType])
+
+  useEffect(() => {
+    pb.collection('users').getFullList().then(setUsers).catch(console.error)
+  }, [])
 
   if (!activeItem) return null
 
@@ -112,13 +118,6 @@ export function PropertiesPanel({
   }
 
   if (!activeField) return null
-
-  const [tab, setTab] = useState<'geral' | 'logica'>('geral')
-  const [users, setUsers] = useState<any[]>([])
-
-  useEffect(() => {
-    pb.collection('users').getFullList().then(setUsers).catch(console.error)
-  }, [])
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 pb-6">
