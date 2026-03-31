@@ -76,7 +76,7 @@ export function AuditReportDialog({ audit, onClose, showApproval, onApprove }: P
     try {
       await store.addActionPlan({
         field_id: audit.id,
-        task_id: audit.id,
+        task_id: audit.taskId || audit.id,
         responsible_id: apResponsible,
         status: 'open',
         description: apDescription,

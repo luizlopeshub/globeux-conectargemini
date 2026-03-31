@@ -213,6 +213,7 @@ export default function useAppStore() {
 
           return {
             id: r.id,
+            taskId: r.task_id || r.expand?.task_id?.id || undefined,
             templateId: r.data?.templateId || '',
             templateName: r.data?.templateName || 'Checklist',
             operatorId: r.user_id,
@@ -343,7 +344,7 @@ export default function useAppStore() {
           }
         })
 
-        const mappedAudit = { ...a, id: response.id, answers: mappedAnswers }
+        const mappedAudit = { ...a, id: response.id, taskId: task.id, answers: mappedAnswers }
         const nd = { ...globalState.drafts }
         delete nd[a.templateId]
 
