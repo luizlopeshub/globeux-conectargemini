@@ -9,7 +9,13 @@ import {
   Settings,
   LogOut,
   FolderTree,
+  Globe,
+  Database,
+  Building,
+  BookOpen,
+  ChevronRight,
 } from 'lucide-react'
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@radix-ui/react-collapsible'
 import {
   Sidebar,
   SidebarProvider,
@@ -20,6 +26,9 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
   SidebarHeader,
   SidebarFooter,
   SidebarTrigger,
@@ -49,8 +58,13 @@ export default function Layout() {
     },
     { title: 'Construtor', path: '/builder', icon: Wrench, roles: ['admin'] },
     { title: 'Usuários', path: '/users', icon: Users, roles: ['admin'] },
-    { title: 'Entidades', path: '/master-data/config', icon: FolderTree, roles: ['admin'] },
-    { title: 'Configurações', path: '/settings/general', icon: Settings, roles: ['admin'] },
+  ]
+
+  const settingsItems = [
+    { title: 'API', path: '/settings/api', icon: Globe },
+    { title: 'Dados Mestres', path: '/settings/entities', icon: Database },
+    { title: 'Departamentos', path: '/settings/departments', icon: Building },
+    { title: 'Assuntos', path: '/settings/subjects', icon: BookOpen },
   ]
 
   const filteredNav = navItems.filter((item) => item.roles.includes(role))
@@ -79,6 +93,37 @@ export default function Layout() {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
+
+                {role === 'admin' && (
+                  <Collapsible defaultOpen className="group/collapsible">
+                    <SidebarMenuItem>
+                      <CollapsibleTrigger asChild>
+                        <SidebarMenuButton>
+                          <Settings />
+                          <span>Configurações</span>
+                          <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                        </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <SidebarMenuSub>
+                          {settingsItems.map((item) => (
+                            <SidebarMenuSubItem key={item.path}>
+                              <SidebarMenuSubButton
+                                asChild
+                                isActive={location.pathname === item.path}
+                              >
+                                <Link to={item.path}>
+                                  <item.icon />
+                                  <span>{item.title}</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          ))}
+                        </SidebarMenuSub>
+                      </CollapsibleContent>
+                    </SidebarMenuItem>
+                  </Collapsible>
+                )}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>

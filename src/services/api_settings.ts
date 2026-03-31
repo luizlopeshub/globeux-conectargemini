@@ -8,23 +8,23 @@ export interface ApiSettings {
   smtp_user?: string
   smtp_pass?: string
   smtp_encryption?: string
+  created?: string
+  updated?: string
 }
 
-export const getApiSettings = async (): Promise<ApiSettings | null> => {
+export async function getApiSettings(): Promise<ApiSettings | null> {
   try {
     const records = await pb.collection('api_settings').getFullList<ApiSettings>()
     return records[0] || null
-  } catch (error) {
-    console.error('Error fetching api settings:', error)
+  } catch (e) {
     return null
   }
 }
 
-export const saveApiSettings = async (data: ApiSettings): Promise<ApiSettings> => {
-  const records = await pb.collection('api_settings').getFullList()
-  if (records.length > 0) {
-    return pb.collection('api_settings').update<ApiSettings>(records[0].id, data)
+export async function saveApiSettings(id: string | null, data: Partial<ApiSettings>) {
+  if (id) {
+    return await pb.collection('api_settings').update<ApiSettings>(id, data)
   } else {
-    return pb.collection('api_settings').create<ApiSettings>(data)
+    return await pb.collection('api_settings').create<ApiSettings>(data)
   }
 }

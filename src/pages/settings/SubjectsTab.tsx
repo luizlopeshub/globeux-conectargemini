@@ -93,13 +93,7 @@ export function SubjectsTab() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-medium">Assuntos</h3>
-          <p className="text-sm text-muted-foreground">
-            Gerencie os assuntos que categorizam os templates de auditoria.
-          </p>
-        </div>
+      <div className="flex items-center justify-end">
         <Button onClick={() => openModal()}>
           <Plus className="w-4 h-4 mr-2" /> Novo Assunto
         </Button>

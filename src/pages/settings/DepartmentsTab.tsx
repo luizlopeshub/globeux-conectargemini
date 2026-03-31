@@ -98,13 +98,7 @@ export function DepartmentsTab() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-medium">Departamentos</h3>
-          <p className="text-sm text-muted-foreground">
-            Gerencie os departamentos utilizados no sistema.
-          </p>
-        </div>
+      <div className="flex items-center justify-end">
         <Button onClick={() => openModal()}>
           <Plus className="w-4 h-4 mr-2" /> Novo Departamento
         </Button>

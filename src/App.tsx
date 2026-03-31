@@ -17,6 +17,9 @@ const EntityConfig = lazy(() => import('./pages/master-data/EntityConfig'))
 const MasterDataRecords = lazy(() => import('./pages/master-data/MasterDataRecords'))
 const GeneralSettings = lazy(() => import('./pages/settings/GeneralSettings'))
 const Integrations = lazy(() => import('./pages/settings/Integrations'))
+const ApiSettings = lazy(() => import('./pages/settings/ApiSettings'))
+const Departments = lazy(() => import('./pages/settings/Departments'))
+const Subjects = lazy(() => import('./pages/settings/Subjects'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 const Login = lazy(() => import('./pages/Login'))
 const Schedules = lazy(() => import('./pages/Schedules'))
@@ -125,10 +128,34 @@ const AppContent = () => {
             }
           />
           <Route
-            path="/master-data/config"
+            path="/settings/entities"
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <EntityConfig />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings/api"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <ApiSettings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings/departments"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <Departments />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings/subjects"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <Subjects />
               </ProtectedRoute>
             }
           />
