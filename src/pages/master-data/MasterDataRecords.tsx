@@ -117,12 +117,36 @@ export default function MasterDataRecords() {
         await pb.collection('master_data_entries').update(editingRecord.id, {
           data: formData,
         })
+
+        try {
+          await pb.collection('audit_logs').create({
+            user_id: pb.authStore.record?.id,
+            action: 'update',
+            entity_name: entity.name,
+            payload: formData,
+          })
+        } catch (logErr) {
+          console.error(logErr)
+        }
+
         toast({ title: 'Sucesso', description: 'Registro atualizado.' })
       } else {
         await pb.collection('master_data_entries').create({
           entity_id: entity.id,
           data: formData,
         })
+
+        try {
+          await pb.collection('audit_logs').create({
+            user_id: pb.authStore.record?.id,
+            action: 'create',
+            entity_name: entity.name,
+            payload: formData,
+          })
+        } catch (logErr) {
+          console.error(logErr)
+        }
+
         toast({ title: 'Sucesso', description: 'Registro criado.' })
       }
       setIsDialogOpen(false)
@@ -136,7 +160,34 @@ export default function MasterDataRecords() {
   const handleDelete = async (id: string) => {
     if (!confirm('Deseja excluir este registro?')) return
     try {
+      // Data Integrity: Deletion Block
+      const responses = await pb.collection('responses').getList(1, 1, {
+        filter: `data ~ "${id}"`,
+      })
+      if (responses.items.length > 0) {
+        toast({
+          title: 'Atenção',
+          description:
+            'Este registro não pode ser excluído pois está vinculado a auditorias realizadas',
+          variant: 'destructive',
+        })
+        return
+      }
+
+      const recordToDelete = records.find((r) => r.id === id)
       await pb.collection('master_data_entries').delete(id)
+
+      try {
+        await pb.collection('audit_logs').create({
+          user_id: pb.authStore.record?.id,
+          action: 'delete',
+          entity_name: entity?.name || 'master_data',
+          payload: recordToDelete ? recordToDelete.data : { id },
+        })
+      } catch (logErr) {
+        console.error('Failed to write audit log', logErr)
+      }
+
       toast({ title: 'Sucesso', description: 'Registro excluído.' })
     } catch (err) {
       toast({ title: 'Erro', description: getErrorMessage(err), variant: 'destructive' })
@@ -235,21 +286,33 @@ export default function MasterDataRecords() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            {entity.fields.map((field) => (
-              <div key={field.id} className="space-y-2">
-                <Label>{field.name}</Label>
-                <Input
-                  type={
-                    field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'
-                  }
-                  value={formData[field.name] || ''}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, [field.name]: e.target.value }))
-                  }
-                  placeholder={`Digite ${field.name.toLowerCase()}`}
-                />
-              </div>
-            ))}
+            {entity.fields.map((field) => {
+              const isImmutable =
+                editingRecord &&
+                (field.name.toLowerCase() === 'nome' ||
+                  field.name.toLowerCase() === 'documento/cpf')
+              return (
+                <div key={field.id} className="space-y-2">
+                  <Label>{field.name}</Label>
+                  <Input
+                    type={
+                      field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'
+                    }
+                    value={formData[field.name] || ''}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, [field.name]: e.target.value }))
+                    }
+                    placeholder={`Digite ${field.name.toLowerCase()}`}
+                    disabled={!!isImmutable}
+                  />
+                  {isImmutable && (
+                    <p className="text-xs text-muted-foreground">
+                      Este campo não pode ser alterado após a criação.
+                    </p>
+                  )}
+                </div>
+              )
+            })}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isSaving}>

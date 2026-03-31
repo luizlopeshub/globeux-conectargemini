@@ -22,9 +22,24 @@ export async function getApiSettings(): Promise<ApiSettings | null> {
 }
 
 export async function saveApiSettings(id: string | null, data: Partial<ApiSettings>) {
+  let result
+  const action = id ? 'update' : 'create'
   if (id) {
-    return await pb.collection('api_settings').update<ApiSettings>(id, data)
+    result = await pb.collection('api_settings').update<ApiSettings>(id, data)
   } else {
-    return await pb.collection('api_settings').create<ApiSettings>(data)
+    result = await pb.collection('api_settings').create<ApiSettings>(data)
   }
+
+  try {
+    await pb.collection('audit_logs').create({
+      user_id: pb.authStore.record?.id,
+      action,
+      entity_name: 'api_settings',
+      payload: data,
+    })
+  } catch (err) {
+    console.error('Failed to save audit log', err)
+  }
+
+  return result
 }

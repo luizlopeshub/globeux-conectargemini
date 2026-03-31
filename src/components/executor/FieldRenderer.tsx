@@ -18,9 +18,19 @@ interface Props {
   onChange: (val: any) => void
   allAnswers: Record<string, any>
   error?: string
+  onUploadStart?: () => void
+  onUploadEnd?: () => void
 }
 
-export function FieldRenderer({ field, value, onChange, allAnswers, error }: Props) {
+export function FieldRenderer({
+  field,
+  value,
+  onChange,
+  allAnswers,
+  error,
+  onUploadStart,
+  onUploadEnd,
+}: Props) {
   const store = useAppStore()
   const { id } = useParams()
   const [isUploading, setIsUploading] = useState(false)
@@ -39,6 +49,7 @@ export function FieldRenderer({ field, value, onChange, allAnswers, error }: Pro
 
   const handleFileUpload = async (file: File) => {
     setIsUploading(true)
+    onUploadStart?.()
     try {
       const formData = new FormData()
       formData.append('images', file)
@@ -72,6 +83,7 @@ export function FieldRenderer({ field, value, onChange, allAnswers, error }: Pro
       onChange(URL.createObjectURL(file))
     } finally {
       setIsUploading(false)
+      onUploadEnd?.()
     }
   }
 

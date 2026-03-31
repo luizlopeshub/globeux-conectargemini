@@ -21,6 +21,10 @@ export default function Executor() {
   const [answers, setAnswers] = useState<Record<string, any>>({})
   const [currentStep, setCurrentStep] = useState(0)
   const [savingStatus, setSavingStatus] = useState('')
+  const [uploadingCount, setUploadingCount] = useState(0)
+
+  const handleUploadStart = () => setUploadingCount((prev) => prev + 1)
+  const handleUploadEnd = () => setUploadingCount((prev) => Math.max(0, prev - 1))
 
   useEffect(() => {
     if (id && drafts[id]) {
@@ -202,6 +206,8 @@ export default function Executor() {
                 onChange={(v) => setAnswers((p) => ({ ...p, [field.id]: v }))}
                 allAnswers={answers}
                 error={hardValidationErrors[field.id]}
+                onUploadStart={handleUploadStart}
+                onUploadEnd={handleUploadEnd}
               />
             )
           })}
@@ -237,14 +243,20 @@ export default function Executor() {
           {isLastStep ? (
             <Button
               onClick={handleSubmit}
-              disabled={hasHardErrors}
+              disabled={hasHardErrors || uploadingCount > 0}
               className="w-48 h-12 bg-[#f59e0b] hover:bg-[#d97706] text-white disabled:bg-muted disabled:text-muted-foreground"
             >
-              <Send className="h-4 w-4 mr-2" /> Finalizar e Gerar PDF
+              <Send className="h-4 w-4 mr-2" />{' '}
+              {uploadingCount > 0 ? 'Enviando...' : 'Finalizar e Gerar PDF'}
             </Button>
           ) : (
-            <Button onClick={handleNext} disabled={hasHardErrors} className="w-32 h-12">
-              Próximo <ArrowRight className="h-4 w-4 ml-2" />
+            <Button
+              onClick={handleNext}
+              disabled={hasHardErrors || uploadingCount > 0}
+              className="w-32 h-12"
+            >
+              {uploadingCount > 0 ? 'Enviando...' : 'Próximo'}{' '}
+              <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           )}
         </div>
