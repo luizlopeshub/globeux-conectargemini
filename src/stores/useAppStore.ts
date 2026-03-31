@@ -380,7 +380,9 @@ export default function useAppStore() {
               entity_name: 'subjects',
               payload: { name },
             })
-        } catch (e) {}
+        } catch (e) {
+          console.error(e)
+        }
         update({ subjects: [...globalState.subjects, record as any] })
       }, 'Assunto criado com sucesso!')
     },
@@ -396,7 +398,9 @@ export default function useAppStore() {
               entity_name: 'subjects',
               payload: { id, name },
             })
-        } catch (e) {}
+        } catch (e) {
+          console.error(e)
+        }
         update({ subjects: globalState.subjects.map((x) => (x.id === id ? (record as any) : x)) })
       }, 'Assunto atualizado!')
     },
@@ -412,7 +416,9 @@ export default function useAppStore() {
               entity_name: 'subjects',
               payload: { id },
             })
-        } catch (e) {}
+        } catch (e) {
+          console.error(e)
+        }
         update({ subjects: globalState.subjects.filter((x) => x.id !== id) })
       }, 'Assunto removido!')
     },
@@ -429,7 +435,9 @@ export default function useAppStore() {
               entity_name: 'departments',
               payload: { name },
             })
-        } catch (e) {}
+        } catch (e) {
+          console.error(e)
+        }
         update({ departments: [...globalState.departments, record as any] })
       }, 'Departamento criado com sucesso!')
     },
@@ -445,7 +453,9 @@ export default function useAppStore() {
               entity_name: 'departments',
               payload: { id, name },
             })
-        } catch (e) {}
+        } catch (e) {
+          console.error(e)
+        }
         update({
           departments: globalState.departments.map((x) => (x.id === id ? (record as any) : x)),
         })
@@ -463,7 +473,9 @@ export default function useAppStore() {
               entity_name: 'departments',
               payload: { id },
             })
-        } catch (e) {}
+        } catch (e) {
+          console.error(e)
+        }
         update({ departments: globalState.departments.filter((x) => x.id !== id) })
       }, 'Departamento removido!')
     },
