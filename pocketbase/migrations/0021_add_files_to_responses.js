@@ -19,7 +19,11 @@ migrate(
     }
     if (!actionPlans.fields.getByName('task_id')) {
       actionPlans.fields.add(
-        new RelationField({ name: 'task_id', collectionId: 'tasks', maxSelect: 1 }),
+        new RelationField({
+          name: 'task_id',
+          collectionId: app.findCollectionByNameOrId('tasks').id,
+          maxSelect: 1,
+        }),
       )
     }
     app.save(actionPlans)
