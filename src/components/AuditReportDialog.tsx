@@ -11,6 +11,7 @@ import { useState } from 'react'
 import { generatePDF } from '@/services/exportService'
 import { toast } from '@/hooks/use-toast'
 import pb from '@/lib/pocketbase/client'
+import { SmartLookup } from '@/components/SmartLookup'
 
 interface Props {
   audit: Audit | null
@@ -351,12 +352,12 @@ export function AuditReportDialog({ audit, onClose, showApproval, onApprove }: P
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="h-5 w-5" /> Reprovar Auditoria & Criar Plano de Ação
+              <AlertTriangle className="h-5 w-5" /> Abertura de Pendência
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-4">
             <div className="space-y-2">
-              <Label>Descrição da Falha / Não Conformidade</Label>
+              <Label>Motivo / Descrição da Falha</Label>
               <textarea
                 className="w-full min-h-[100px] p-3 border rounded-md text-sm outline-none focus:ring-2 focus:ring-primary/50 bg-background"
                 placeholder="Descreva o motivo da rejeição e o que precisa ser corrigido..."
@@ -368,23 +369,19 @@ export function AuditReportDialog({ audit, onClose, showApproval, onApprove }: P
               <Label>Prazo de Resolução</Label>
               <Input type="date" value={apDueDate} onChange={(e) => setApDueDate(e.target.value)} />
             </div>
-            <div className="space-y-2">
-              <Label>Responsável pela Ação</Label>
-              <select
-                className="w-full h-10 px-3 border rounded-md text-sm bg-background outline-none focus:ring-2 focus:ring-primary/50"
+            <div className="space-y-2 flex flex-col">
+              <Label>Responsável</Label>
+              <SmartLookup
+                options={[
+                  { value: audit.operatorId, label: `${audit.operatorName} (Auditor Original)` },
+                  ...users
+                    .filter((u) => u.id !== audit.operatorId)
+                    .map((u) => ({ value: u.id, label: `${u.name} (${u.role})` })),
+                ]}
                 value={apResponsible}
-                onChange={(e) => setApResponsible(e.target.value)}
-              >
-                <option value="">Selecione um responsável...</option>
-                <option value={audit.operatorId}>{audit.operatorName} (Auditor Original)</option>
-                {users
-                  .filter((u) => u.id !== audit.operatorId)
-                  .map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name} ({u.role})
-                    </option>
-                  ))}
-              </select>
+                onChange={setApResponsible}
+                placeholder="Selecione um responsável..."
+              />
             </div>
             <div className="flex justify-end gap-3 pt-4">
               <Button variant="outline" onClick={() => setShowRejectModal(false)}>
