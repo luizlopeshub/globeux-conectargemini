@@ -137,7 +137,6 @@ export default function useAppStore() {
       }
 
       try {
-        // Hydration logic: explicitly verify user session on server
         await pb.collection('users').authRefresh()
       } catch (err: any) {
         console.error('Auth refresh error:', err)
@@ -156,13 +155,23 @@ export default function useAppStore() {
       try {
         const currentUserRole = pb.authStore.record?.role || 'operator'
         const isAdmin = currentUserRole === 'admin'
+        const currentUserId = pb.authStore.record?.id
 
         const queries: Promise<any>[] = [
           pb.collection('templates').getFullList(),
-          pb.collection('schedules').getFullList(),
-          pb.collection('tasks').getFullList(),
-          pb.collection('action_plans').getFullList(),
-          pb.collection('responses').getFullList({ expand: 'task_id,user_id' }),
+          pb
+            .collection('schedules')
+            .getFullList(isAdmin ? {} : { filter: `assigned_to = "${currentUserId}"` }),
+          pb
+            .collection('tasks')
+            .getFullList(isAdmin ? {} : { filter: `user_id = "${currentUserId}"` }),
+          pb
+            .collection('action_plans')
+            .getFullList(isAdmin ? {} : { filter: `responsible_id = "${currentUserId}"` }),
+          pb.collection('responses').getFullList({
+            expand: 'task_id,user_id',
+            filter: isAdmin ? '' : `user_id = "${currentUserId}"`,
+          }),
           pb.collection('subjects').getFullList(),
           pb.collection('departments').getFullList(),
         ]
@@ -187,21 +196,37 @@ export default function useAppStore() {
           apiSettingsRes,
         ] = await Promise.all(queries)
 
-        const mappedAudits: Audit[] = responsesRes.map((r) => ({
-          id: r.id,
-          templateId: r.data?.templateId || '',
-          templateName: r.data?.templateName || 'Checklist',
-          operatorId: r.user_id,
-          operatorName: r.expand?.user_id?.name || 'Desconhecido',
-          operatorAvatar: r.expand?.user_id?.avatar
-            ? pb.files.getUrl(r.expand.user_id, r.expand.user_id.avatar)
-            : undefined,
-          timestamp: r.data?.timestamp || r.created,
-          location: r.data?.location || '',
-          status: r.status,
-          approvalStatus: r.data?.approvalStatus || 'Pendente',
-          answers: r.data?.answers || {},
-        }))
+        const mappedAudits: Audit[] = responsesRes.map((r) => {
+          const answers = { ...(r.data?.answers || {}) }
+          const files = r.files || []
+
+          Object.keys(answers).forEach((k) => {
+            const val = answers[k]
+            if (typeof val === 'string' && val.startsWith('file:img_')) {
+              const baseName = val.replace('file:', '').split('.')[0]
+              const actualFilename = files.find((f: string) => f.startsWith(baseName))
+              if (actualFilename) {
+                answers[k] = pb.files.getUrl(r, actualFilename)
+              }
+            }
+          })
+
+          return {
+            id: r.id,
+            templateId: r.data?.templateId || '',
+            templateName: r.data?.templateName || 'Checklist',
+            operatorId: r.user_id,
+            operatorName: r.expand?.user_id?.name || 'Desconhecido',
+            operatorAvatar: r.expand?.user_id?.avatar
+              ? pb.files.getUrl(r.expand.user_id, r.expand.user_id.avatar)
+              : undefined,
+            timestamp: r.data?.timestamp || r.created,
+            location: r.data?.location || '',
+            status: r.status,
+            approvalStatus: r.data?.approvalStatus || 'Pendente',
+            answers,
+          }
+        })
 
         update({
           users: usersRes as any,
@@ -223,12 +248,6 @@ export default function useAppStore() {
             title: 'Sessão Inválida',
             description: 'Sua sessão expirou ou é inválida. Por favor, faça login novamente.',
             variant: 'destructive',
-          })
-        } else {
-          toast({
-            title: 'Aviso',
-            description: 'Alguns dados podem não ter sido carregados corretamente.',
-            variant: 'default',
           })
         }
       } finally {
@@ -286,23 +305,48 @@ export default function useAppStore() {
 
         const template = globalState.templates.find((t) => t.id === a.templateId)
 
-        const response = await pb.collection('responses').create({
-          task_id: task.id,
-          user_id: a.operatorId,
-          status: a.status,
-          data: {
+        const formData = new FormData()
+        formData.append('task_id', task.id)
+        formData.append('user_id', a.operatorId)
+        formData.append('status', a.status)
+
+        const finalAnswers = { ...a.answers }
+        Object.entries(finalAnswers).forEach(([key, val]) => {
+          if (val instanceof File) {
+            const safeName = `img_${key}.jpg`
+            const fileWithKey = new File([val], safeName, { type: val.type || 'image/jpeg' })
+            formData.append('files', fileWithKey)
+            finalAnswers[key] = `file:${safeName}`
+          }
+        })
+
+        formData.append(
+          'data',
+          JSON.stringify({
             templateId: a.templateId,
             templateName: a.templateName,
             location: a.location,
-            answers: a.answers,
+            answers: finalAnswers,
             approvalStatus: a.approvalStatus,
             timestamp: a.timestamp,
             pdf_settings: template?.pdf_settings || null,
-          },
+          }),
+        )
+
+        const response = await pb.collection('responses').create(formData)
+
+        // Quick map for local state to show immediately
+        const mappedAnswers = { ...finalAnswers }
+        Object.keys(mappedAnswers).forEach((k) => {
+          if (typeof mappedAnswers[k] === 'string' && mappedAnswers[k].startsWith('file:')) {
+            mappedAnswers[k] = 'https://img.usecurling.com/p/400/300?q=processing' // Temporary placeholder until re-fetched
+          }
         })
-        const mappedAudit = { ...a, id: response.id }
+
+        const mappedAudit = { ...a, id: response.id, answers: mappedAnswers }
         const nd = { ...globalState.drafts }
         delete nd[a.templateId]
+
         update({
           audits: [mappedAudit, ...globalState.audits],
           drafts: nd,

@@ -125,10 +125,16 @@ export function FieldRenderer({ field, value, onChange, allAnswers, error }: Pro
             <MapPin className="h-4 w-4 text-blue-500" /> Capturar Localização
           </Button>
         )
-      case 'camera':
-        return value ? (
+      case 'camera': {
+        const imgUrl =
+          value instanceof File
+            ? URL.createObjectURL(value)
+            : typeof value === 'string' && value.startsWith('http')
+              ? value
+              : null
+        return value && imgUrl ? (
           <div className="relative rounded-md overflow-hidden border">
-            <img src={value} alt="Captura" className="w-full h-48 object-cover" />
+            <img src={imgUrl} alt="Captura" className="w-full h-48 object-cover" />
             <Button
               variant="destructive"
               size="sm"
@@ -139,14 +145,28 @@ export function FieldRenderer({ field, value, onChange, allAnswers, error }: Pro
             </Button>
           </div>
         ) : (
-          <Button
-            variant="outline"
-            className="h-12 w-full gap-2 bg-white"
-            onClick={() => onChange('https://img.usecurling.com/p/400/300?q=warehouse')}
-          >
-            <Camera className="h-4 w-4 text-blue-500" /> Tirar Foto
-          </Button>
+          <div className="relative">
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) {
+                  onChange(e.target.files[0])
+                }
+              }}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+            />
+            <Button
+              variant="outline"
+              className="h-12 w-full gap-2 bg-white relative z-0"
+              type="button"
+            >
+              <Camera className="h-4 w-4 text-blue-500" /> Tirar Foto ou Escolher Arquivo
+            </Button>
+          </div>
         )
+      }
       case 'signature':
         return value ? (
           <div className="border rounded-md bg-white p-4 text-center">

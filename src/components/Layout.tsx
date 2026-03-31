@@ -22,6 +22,7 @@ import {
   Link as LinkIcon,
   ShieldCheck,
   BarChart3,
+  Calendar,
 } from 'lucide-react'
 
 export default function Layout() {
@@ -61,6 +62,14 @@ export default function Layout() {
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+
+            <SidebarGroup>
+              <SidebarGroupLabel>Gestão</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild isActive={isActive('/logs')}>
                       <Link to="/logs">
@@ -74,6 +83,14 @@ export default function Layout() {
                       <Link to="/reports">
                         <BarChart3 />
                         <span>Relatórios</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={isActive('/schedules')}>
+                      <Link to="/schedules">
+                        <Calendar />
+                        <span>Agendamentos</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

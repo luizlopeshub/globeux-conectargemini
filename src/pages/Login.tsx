@@ -14,10 +14,12 @@ import pb from '@/lib/pocketbase/client'
 import { Label } from '@/components/ui/label'
 import useAppStore from '@/stores/useAppStore'
 import { Package } from 'lucide-react'
+import { toast } from '@/hooks/use-toast'
 
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [isResetting, setIsResetting] = useState(false)
   const { login, isLoading } = useAppStore()
   const navigate = useNavigate()
 
@@ -28,6 +30,34 @@ export default function Login() {
       navigate('/')
     } catch (err) {
       // Error is handled by store with toast
+    }
+  }
+
+  const handleResetPassword = async () => {
+    if (!email) {
+      toast({
+        title: 'Atenção',
+        description: 'Informe seu e-mail no campo acima para recuperar a senha.',
+        variant: 'destructive',
+      })
+      return
+    }
+    setIsResetting(true)
+    try {
+      await pb.collection('users').requestPasswordReset(email)
+      toast({
+        title: 'E-mail de recuperação enviado!',
+        description: 'Verifique sua caixa de entrada com as instruções para redefinir sua senha.',
+      })
+    } catch (err) {
+      toast({
+        title: 'Erro',
+        description:
+          'Não foi possível solicitar a recuperação de senha. Verifique o e-mail informado.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsResetting(false)
     }
   }
 
@@ -51,14 +81,6 @@ export default function Login() {
           </CardHeader>
           <form onSubmit={handleLogin}>
             <CardContent className="space-y-4">
-              <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm text-primary">
-                <strong>Credenciais de acesso:</strong>
-                <br />
-                Email: luiz@globexmultimodal.com.br
-                <br />
-                Senha: securepassword123
-              </div>
-
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -71,7 +93,18 @@ export default function Login() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Senha</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Senha</Label>
+                  <Button
+                    variant="link"
+                    className="px-0 h-auto text-xs font-normal"
+                    type="button"
+                    onClick={handleResetPassword}
+                    disabled={isResetting}
+                  >
+                    Esqueci minha senha?
+                  </Button>
+                </div>
                 <Input
                   id="password"
                   type="password"

@@ -20,6 +20,68 @@ export const generateAuditHTML = (audit: Audit, template: Template) => {
   const header = settings.header_text || ''
   const footer = settings.footer_text || ''
 
+  const photos: { label: string; url: string }[] = []
+
+  const blocksContent = template.blocks
+    .map((b) => {
+      const bFields = template.fields.filter((f) => f.blockId === b.id)
+      if (!bFields.some((f) => audit.answers[f.id] !== undefined)) return ''
+
+      return `
+      <div style="margin-bottom: 20px;">
+        <div style="background: #f8f9fa; padding: 8px 12px; border-left: 4px solid ${color}; font-weight: bold; margin-bottom: 10px; font-size: 14px;">
+          ${b.name}
+        </div>
+        ${bFields
+          .map((f) => {
+            const val = audit.answers[f.id]
+            if (val === undefined || val === 'signed') return ''
+            let displayVal = resolveLookup(val)
+            const isImg = typeof val === 'string' && val.startsWith('http')
+
+            if (isImg) {
+              if (settings.show_photos !== false) {
+                photos.push({ label: f.label, url: val })
+                displayVal = `<span style="color: #666; font-style: italic;">Ver anexo fotográfico ao final do documento</span>`
+              } else {
+                displayVal = '<span style="color: #888; font-style: italic;">Foto omitida</span>'
+              }
+            }
+
+            return `
+            <div style="display: flex; flex-direction: ${settings.layout_mode === 'detailed' ? 'column' : 'row'}; justify-content: ${settings.layout_mode === 'detailed' ? 'flex-start' : 'space-between'}; padding: 8px 0; border-bottom: 1px dashed #eee; font-size: 13px;">
+              <div style="font-weight: bold; width: ${settings.layout_mode === 'detailed' ? '100%' : '40%'}; margin-bottom: ${settings.layout_mode === 'detailed' ? '4px' : '0'};">${f.label}</div>
+              <div style="width: ${settings.layout_mode === 'detailed' ? '100%' : '60%'}; text-align: ${settings.layout_mode === 'detailed' ? 'left' : 'right'}; word-break: break-word;">${displayVal}</div>
+            </div>
+          `
+          })
+          .join('')}
+      </div>
+    `
+    })
+    .join('')
+
+  const photosSection =
+    photos.length > 0
+      ? `
+    <div style="margin-top: 30px; page-break-before: auto;">
+      <h3 style="color: ${color}; border-bottom: 2px solid ${color}; padding-bottom: 5px; font-size: 16px;">Evidências Fotográficas</h3>
+      <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-top: 15px;">
+        ${photos
+          .map(
+            (p) => `
+          <div style="width: 45%; break-inside: avoid; margin-bottom: 15px;">
+            <div style="font-size: 12px; font-weight: bold; margin-bottom: 5px; color: #555;">${p.label}</div>
+            <img src="${p.url}" style="width: 100%; max-height: 250px; object-fit: contain; border: 1px solid #ddd; border-radius: 4px; padding: 4px;" />
+          </div>
+        `,
+          )
+          .join('')}
+      </div>
+    </div>
+  `
+      : ''
+
   return `
     <div style="font-family: Arial, sans-serif; color: #333; margin: 0; padding: 20px; box-sizing: border-box;">
       <div style="display: flex; justify-content: space-between; border-bottom: 2px solid ${color}; padding-bottom: 10px; margin-bottom: 20px;">
@@ -36,45 +98,10 @@ export const generateAuditHTML = (audit: Audit, template: Template) => {
       </div>
 
       <div style="margin-bottom: 30px;">
-        ${template.blocks
-          .map((b) => {
-            const bFields = template.fields.filter((f) => f.blockId === b.id)
-            if (!bFields.some((f) => audit.answers[f.id] !== undefined)) return ''
-
-            return `
-            <div style="margin-bottom: 20px;">
-              <div style="background: #f8f9fa; padding: 8px 12px; border-left: 4px solid ${color}; font-weight: bold; margin-bottom: 10px; font-size: 14px;">
-                ${b.name}
-              </div>
-              ${bFields
-                .map((f) => {
-                  const val = audit.answers[f.id]
-                  if (val === undefined || val === 'signed') return ''
-                  let displayVal = resolveLookup(val)
-                  const isImg = typeof val === 'string' && val.startsWith('http')
-
-                  if (isImg) {
-                    if (settings.show_photos !== false) {
-                      displayVal = `<img src="${val}" style="max-width: 200px; max-height: 200px; border-radius: 4px; border: 1px solid #ccc; margin-top: 5px;" />`
-                    } else {
-                      displayVal =
-                        '<span style="color: #888; font-style: italic;">Foto omitida</span>'
-                    }
-                  }
-
-                  return `
-                  <div style="display: flex; flex-direction: ${settings.layout_mode === 'detailed' ? 'column' : 'row'}; justify-content: ${settings.layout_mode === 'detailed' ? 'flex-start' : 'space-between'}; padding: 8px 0; border-bottom: 1px dashed #eee; font-size: 13px;">
-                    <div style="font-weight: bold; width: ${settings.layout_mode === 'detailed' ? '100%' : '40%'}; margin-bottom: ${settings.layout_mode === 'detailed' ? '4px' : '0'};">${f.label}</div>
-                    <div style="width: ${settings.layout_mode === 'detailed' ? '100%' : '60%'}; text-align: ${settings.layout_mode === 'detailed' ? 'left' : 'right'}; word-break: break-word;">${displayVal}</div>
-                  </div>
-                `
-                })
-                .join('')}
-            </div>
-          `
-          })
-          .join('')}
+        ${blocksContent}
       </div>
+
+      ${photosSection}
 
       <div style="margin-top: 40px; border-top: 1px solid #ccc; padding-top: 15px; font-size: 11px; text-align: center; color: #777; white-space: pre-wrap;">
         ${footer}
