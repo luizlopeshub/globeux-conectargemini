@@ -82,6 +82,9 @@ export function FieldRenderer({
         if (/^[0-9+\-*/().\s]+$/.test(safeExpression)) {
           // eslint-disable-next-line no-new-func
           calculatedValue = new Function('return ' + expression)()
+          if (!isFinite(calculatedValue) || isNaN(calculatedValue)) {
+            calculatedValue = 0
+          }
         }
       } catch (e) {
         console.error('Erro na fórmula de cálculo:', e)
@@ -101,9 +104,9 @@ export function FieldRenderer({
       )
     }
 
-    const finalVal = Number(calculatedValue.toFixed(4))
+    const finalVal = isNaN(calculatedValue) ? 0 : Number(calculatedValue.toFixed(4))
 
-    if (value !== finalVal && !isNaN(finalVal)) {
+    if (value !== finalVal) {
       // Delay to prevent React render loop warnings when multiple calcs exist
       setTimeout(() => onChange(finalVal), 0)
     }

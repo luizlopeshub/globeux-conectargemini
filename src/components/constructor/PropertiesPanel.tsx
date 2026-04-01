@@ -38,6 +38,10 @@ export function PropertiesPanel({
   const [tab, setTab] = useState<'geral' | 'logica'>('geral')
   const [users, setUsers] = useState<any[]>([])
 
+  const [calcField1, setCalcField1] = useState('')
+  const [calcOp, setCalcOp] = useState('+')
+  const [calcField2, setCalcField2] = useState('')
+
   const activeField =
     activeItem?.type === 'field' ? fields.find((f) => f.id === activeItem.id) : undefined
 
@@ -373,49 +377,118 @@ export function PropertiesPanel({
               <div className="space-y-4 border rounded-md p-4 bg-slate-50/50 shadow-sm">
                 <h4 className="font-medium text-sm text-primary">Engenharia de Cálculo</h4>
 
-                <div className="space-y-2">
-                  <Label>Fórmula de Expressão</Label>
-                  <Input
-                    className="bg-white font-mono text-sm"
-                    placeholder="Ex: [field_id_1] * [field_id_2]"
-                    value={activeField.formula || ''}
-                    onChange={(e) => handleUpdateField(activeField.id, { formula: e.target.value })}
-                  />
-                  <div className="text-xs text-muted-foreground">
-                    <p className="mb-1">Variáveis Numéricas Disponíveis (Clique para copiar):</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {fields
-                        .filter(
-                          (f) =>
-                            (f.type === 'number' || f.type === 'calculation') &&
-                            f.id !== activeField.id,
-                        )
-                        .map((f) => (
-                          <span
-                            key={f.id}
-                            className="bg-primary/10 text-primary px-1.5 py-0.5 rounded cursor-pointer hover:bg-primary/20 transition-colors"
-                            title={`Label: ${f.label}`}
-                            onClick={() => {
-                              navigator.clipboard.writeText(`[${f.id}]`)
-                            }}
-                          >
-                            [{f.id}]
-                          </span>
-                        ))}
-                      {fields.filter(
-                        (f) =>
-                          (f.type === 'number' || f.type === 'calculation') &&
-                          f.id !== activeField.id,
-                      ).length === 0 && (
-                        <span className="text-slate-400 italic">
-                          Nenhum campo numérico criado ainda.
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Fórmula de Expressão (Preview)</Label>
+                    <div className="p-3 bg-white border rounded-md font-mono text-sm break-all text-slate-700 min-h-[42px] flex items-center">
+                      {activeField.formula ? (
+                        <span>
+                          Resultado ={' '}
+                          {activeField.formula.replace(/\[([^\]]+)\]/g, (match) => {
+                            const id = match.slice(1, -1)
+                            const field = fields.find((f) => f.id === id)
+                            return field ? `[${field.label}]` : match
+                          })}
                         </span>
+                      ) : (
+                        <span className="text-slate-400">Nenhuma fórmula definida</span>
                       )}
                     </div>
+                    {activeField.formula && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleUpdateField(activeField.id, { formula: '' })}
+                        className="mt-2"
+                      >
+                        Limpar Fórmula
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="p-3 border rounded-md bg-white space-y-3 shadow-sm">
+                    <Label className="text-xs font-semibold text-slate-500 uppercase">
+                      Construtor de Partes
+                    </Label>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Campo 1</Label>
+                        <Select value={calcField1} onValueChange={setCalcField1}>
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue placeholder="Selecione..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {fields
+                              .filter(
+                                (f) =>
+                                  (f.type === 'number' || f.type === 'calculation') &&
+                                  f.id !== activeField.id,
+                              )
+                              .map((f) => (
+                                <SelectItem key={f.id} value={f.id}>
+                                  {f.label || 'Sem Nome'}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Operação</Label>
+                        <Select value={calcOp} onValueChange={setCalcOp}>
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue placeholder="Op" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="+">+ (Soma)</SelectItem>
+                            <SelectItem value="-">- (Subtração)</SelectItem>
+                            <SelectItem value="*">x (Multiplicação)</SelectItem>
+                            <SelectItem value="/">/ (Divisão)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Campo 2</Label>
+                        <Select value={calcField2} onValueChange={setCalcField2}>
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue placeholder="Selecione..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {fields
+                              .filter(
+                                (f) =>
+                                  (f.type === 'number' || f.type === 'calculation') &&
+                                  f.id !== activeField.id,
+                              )
+                              .map((f) => (
+                                <SelectItem key={f.id} value={f.id}>
+                                  {f.label || 'Sem Nome'}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      className="w-full h-8 mt-1"
+                      disabled={!calcField1 || !calcOp || !calcField2}
+                      onClick={() => {
+                        const addition = `[${calcField1}] ${calcOp} [${calcField2}]`
+                        const current = activeField.formula || ''
+                        handleUpdateField(activeField.id, {
+                          formula: current ? `${current} + ${addition}` : addition,
+                        })
+                        setCalcField1('')
+                        setCalcField2('')
+                        setCalcOp('+')
+                      }}
+                    >
+                      Adicionar à Fórmula
+                    </Button>
                   </div>
                 </div>
 
-                <div className="space-y-2 pt-2 border-t">
+                <div className="space-y-2 pt-2 border-t mt-4">
                   <Label>Categoria de Conversão de Unidade</Label>
                   <Select
                     value={activeField.unit_category || 'none'}
