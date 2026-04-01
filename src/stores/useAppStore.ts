@@ -45,7 +45,9 @@ let initialDrafts = {}
 try {
   const stored = localStorage.getItem('@globeux_drafts')
   if (stored) initialDrafts = JSON.parse(stored)
-} catch (e) {}
+} catch (e) {
+  // ignore parsing error
+}
 
 let globalState: AppState = {
   isInitializing: true,
