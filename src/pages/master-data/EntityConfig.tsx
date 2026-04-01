@@ -51,8 +51,9 @@ export default function EntityConfig() {
   }, [])
 
   const handleEdit = (def?: EntityDef) => {
-    if (def) setEditing({ ...def, fields: [...def.fields] })
-    else setEditing({ id: '', name: '', slug: '', fields: [] })
+    if (def)
+      setEditing({ ...def, fields: [...def.fields], searchableFields: def.searchableFields || [] })
+    else setEditing({ id: '', name: '', slug: '', fields: [], searchableFields: [] })
   }
 
   const handleSave = async () => {
@@ -76,19 +77,18 @@ export default function EntityConfig() {
         // Not found, proceeding to create
       }
 
+      const payload = {
+        name: editing.name,
+        slug: editing.slug,
+        fields: editing.fields,
+        searchableFields: editing.searchableFields || [],
+      }
+
       if (existingRecord) {
-        await pb.collection('entity_definitions').update(existingRecord.id, {
-          name: editing.name,
-          slug: editing.slug,
-          fields: editing.fields,
-        })
+        await pb.collection('entity_definitions').update(existingRecord.id, payload)
         toast({ title: 'Sucesso', description: 'Entidade atualizada com sucesso.' })
       } else {
-        await pb.collection('entity_definitions').create({
-          name: editing.name,
-          slug: editing.slug,
-          fields: editing.fields,
-        })
+        await pb.collection('entity_definitions').create(payload)
         toast({ title: 'Sucesso', description: 'Entidade criada com sucesso.' })
       }
 
@@ -224,6 +224,29 @@ export default function EntityConfig() {
                       <SelectItem value="date">Data</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="flex items-center space-x-2 pt-6 px-3">
+                  <input
+                    type="checkbox"
+                    id={`searchable-${i}`}
+                    checked={editing.searchableFields?.includes(f.name) || false}
+                    onChange={(e) => {
+                      const current = editing.searchableFields || []
+                      if (e.target.checked) {
+                        setEditing({ ...editing, searchableFields: [...current, f.name] })
+                      } else {
+                        setEditing({
+                          ...editing,
+                          searchableFields: current.filter((x) => x !== f.name),
+                        })
+                      }
+                    }}
+                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                    disabled={isLoading || !f.name}
+                  />
+                  <Label htmlFor={`searchable-${i}`} className="text-xs cursor-pointer">
+                    Buscável
+                  </Label>
                 </div>
                 <div className="pt-5">
                   <Button

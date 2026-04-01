@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-01T02:04:27.646Z",
+  "generatedAt": "2026-04-01T02:33:30.853Z",
   "collections": [
     {
       "name": "users",
@@ -561,6 +561,12 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "searchableFields",
+          "type": "json",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": ["CREATE UNIQUE INDEX idx_entity_definitions_slug ON entity_definitions (slug)"]

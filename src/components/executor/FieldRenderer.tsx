@@ -69,21 +69,31 @@ export function FieldRenderer({
       try {
         let expression = field.formula
         const matches = expression.match(/\[([^\]]+)\]/g)
+        let hasEmptyField = false
+
         if (matches) {
           matches.forEach((match) => {
             const id = match.slice(1, -1).trim()
-            const val = Number(allAnswers[id]) || 0
+            const rawVal = allAnswers[id]
+            if (rawVal === undefined || rawVal === null || rawVal === '') {
+              hasEmptyField = true
+            }
+            const val = Number(rawVal) || 0
             expression = expression.replace(match, `(${val})`)
           })
         }
 
-        // Only allow safe math characters to be evaluated
-        const safeExpression = expression.replace(/[eE]/g, '')
-        if (/^[0-9+\-*/().\s]+$/.test(safeExpression)) {
-          // eslint-disable-next-line no-new-func
-          calculatedValue = new Function('return ' + expression)()
-          if (!isFinite(calculatedValue) || isNaN(calculatedValue)) {
-            calculatedValue = 0
+        if (hasEmptyField) {
+          calculatedValue = 0
+        } else {
+          // Only allow safe math characters to be evaluated
+          const safeExpression = expression.replace(/[eE]/g, '')
+          if (/^[0-9+\-*/().\s]+$/.test(safeExpression)) {
+            // eslint-disable-next-line no-new-func
+            calculatedValue = new Function('return ' + expression)()
+            if (!isFinite(calculatedValue) || isNaN(calculatedValue)) {
+              calculatedValue = 0
+            }
           }
         }
       } catch (e) {
@@ -91,14 +101,23 @@ export function FieldRenderer({
         calculatedValue = 0
       }
     } else if (field.calcSourceFields?.length) {
+      let hasEmptyField = false
       const vals = field.calcSourceFields.map((id) => {
         const val = allAnswers[id]
-        if (val === undefined || val === null || val === '') return 0
+        if (val === undefined || val === null || val === '') {
+          hasEmptyField = true
+          return 0
+        }
         const num = Number(val)
         return isNaN(num) ? 0 : num
       })
-      const sum = vals.reduce((acc, curr) => acc + curr, 0)
-      calculatedValue = field.calcOperation === 'average' && vals.length ? sum / vals.length : sum
+
+      if (hasEmptyField) {
+        calculatedValue = 0
+      } else {
+        const sum = vals.reduce((acc, curr) => acc + curr, 0)
+        calculatedValue = field.calcOperation === 'average' && vals.length ? sum / vals.length : sum
+      }
     }
     if (field.unit_category && field.unit_source && field.unit_target) {
       calculatedValue = convertUnit(

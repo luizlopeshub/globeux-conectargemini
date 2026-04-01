@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Input } from '@/components/ui/input'
 import useAppStore from '@/stores/useAppStore'
+import pb from '@/lib/pocketbase/client'
 
 export interface SmartLookupOption {
   value: string
@@ -28,41 +29,113 @@ export function SmartLookup({
 }: SmartLookupProps) {
   const [open, setOpen] = React.useState(false)
   const [search, setSearch] = React.useState('')
+  const [debouncedSearch, setDebouncedSearch] = React.useState('')
+  const [asyncOptions, setAsyncOptions] = React.useState<SmartLookupOption[]>([])
   const { entityDefs, entityRecords, isInitializing } = useAppStore()
 
-  const resolvedOptions = React.useMemo(() => {
-    if (options) return options
+  React.useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300)
+    return () => clearTimeout(timer)
+  }, [search])
 
-    if (entitySlug) {
-      const def = (entityDefs || []).find((d) => d.slug === entitySlug)
-      if (!def) return []
+  React.useEffect(() => {
+    if (options || !entitySlug) return
 
-      const records = (entityRecords || []).filter((r) => r.entity_id === def.id)
-      return records.map((r) => {
-        const label =
-          r.data?.name ||
-          r.data?.nome ||
-          r.data?.title ||
-          r.data?.descricao ||
-          r.data?.razao_social ||
-          Object.values(r.data || {})[0] ||
-          r.id
+    const def = (entityDefs || []).find((d) => d.slug === entitySlug)
+    if (!def) return
 
-        return {
-          value: r.id,
-          label: String(label),
+    const fetchOptions = async () => {
+      try {
+        let filter = `entity_id = "${def.id}"`
+        const sFields = def.searchableFields || []
+
+        if (debouncedSearch && sFields.length > 0) {
+          const conditions = sFields
+            .map((f) => `data.${f} ~ "${debouncedSearch.replace(/"/g, '')}"`)
+            .join(' || ')
+          filter += ` && (${conditions})`
+        } else if (debouncedSearch && sFields.length === 0) {
+          filter += ` && id ~ "${debouncedSearch.replace(/"/g, '')}"`
         }
-      })
+
+        const res = await pb.collection('master_data_entries').getList(1, 50, { filter })
+
+        const mapped = res.items.map((r) => {
+          let label = ''
+          if (sFields.length > 0) {
+            const displayFields = sFields.slice(0, 2)
+            label = displayFields
+              .map((fName) => r.data?.[fName])
+              .filter(Boolean)
+              .join(' - ')
+          }
+          if (!label) {
+            label =
+              r.data?.name ||
+              r.data?.nome ||
+              r.data?.title ||
+              r.data?.descricao ||
+              r.data?.razao_social ||
+              Object.values(r.data || {})[0] ||
+              r.id
+          }
+
+          return {
+            value: r.id,
+            label: String(label),
+          }
+        })
+        setAsyncOptions(mapped)
+      } catch (e) {
+        console.error('Error fetching lookup options:', e)
+      }
     }
 
-    return []
-  }, [options, entitySlug, entityDefs, entityRecords])
+    fetchOptions()
+  }, [debouncedSearch, entitySlug, entityDefs, options])
 
-  const isOptionsLoading = isInitializing && !options
+  const isOptionsLoading = isInitializing
 
-  const filteredOptions = (resolvedOptions || []).filter((opt) =>
-    opt?.label?.toLowerCase().includes(search.toLowerCase()),
-  )
+  const resolvedOptions = options || asyncOptions
+
+  const filteredOptions = options
+    ? resolvedOptions.filter((opt) => opt?.label?.toLowerCase().includes(search.toLowerCase()))
+    : resolvedOptions
+
+  const getSelectedLabel = () => {
+    if (!value) return placeholder
+    const opt = resolvedOptions.find((o) => o.value === value)
+    if (opt) return opt.label
+
+    if (!options && entitySlug) {
+      const r = entityRecords.find((rec) => rec.id === value)
+      if (r) {
+        const def = (entityDefs || []).find((d) => d.slug === entitySlug)
+        const sFields = def?.searchableFields || []
+        let label = ''
+        if (sFields.length > 0) {
+          const displayFields = sFields.slice(0, 2)
+          label = displayFields
+            .map((fName) => r.data?.[fName])
+            .filter(Boolean)
+            .join(' - ')
+        }
+        if (!label) {
+          label =
+            r.data?.name ||
+            r.data?.nome ||
+            r.data?.title ||
+            r.data?.descricao ||
+            r.data?.razao_social ||
+            Object.values(r.data || {})[0] ||
+            r.id
+        }
+        return String(label)
+      }
+    }
+
+    return placeholder
+  }
 
   if (isOptionsLoading) {
     return (
@@ -81,11 +154,7 @@ export function SmartLookup({
           aria-expanded={open}
           className="w-full justify-between font-normal"
         >
-          <span className="truncate">
-            {value
-              ? resolvedOptions.find((option) => option.value === value)?.label || placeholder
-              : placeholder}
-          </span>
+          <span className="truncate">{getSelectedLabel()}</span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>

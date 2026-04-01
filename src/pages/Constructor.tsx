@@ -86,11 +86,11 @@ export default function Constructor() {
   }, [])
 
   useEffect(() => {
-    if (!hasLoadedInitial && templates.length > 0) {
-      loadTemplate(templates[0])
+    if (!hasLoadedInitial) {
+      createNewTemplate()
       setHasLoadedInitial(true)
     }
-  }, [templates, hasLoadedInitial])
+  }, [hasLoadedInitial])
 
   useEffect(() => {
     if (nameError) setNameError(null)

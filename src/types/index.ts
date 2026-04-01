@@ -22,6 +22,7 @@ export interface EntityDef {
   name: string
   slug: string
   fields: EntityFieldDef[]
+  searchableFields?: string[]
 }
 
 export interface EntityRecord {
