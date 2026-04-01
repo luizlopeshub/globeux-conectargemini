@@ -133,6 +133,12 @@ export default function useAppStore() {
       update({ drafts: newDrafts })
       localStorage.setItem('@globeux_drafts', JSON.stringify(newDrafts))
     },
+    clearDraft: (tid: string) => {
+      const newDrafts = { ...globalState.drafts }
+      delete newDrafts[tid]
+      update({ drafts: newDrafts })
+      localStorage.setItem('@globeux_drafts', JSON.stringify(newDrafts))
+    },
 
     login: async (email: string, pass: string) => {
       await withLoading(async () => {

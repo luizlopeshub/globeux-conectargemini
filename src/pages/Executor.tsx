@@ -7,15 +7,34 @@ import { Card } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { toast } from '@/hooks/use-toast'
 import { generateId } from '@/lib/utils'
-import { Send, ArrowRight, ArrowLeft, CheckCircle2, AlertOctagon, Loader2 } from 'lucide-react'
+import {
+  Send,
+  ArrowRight,
+  ArrowLeft,
+  CheckCircle2,
+  AlertOctagon,
+  Loader2,
+  RefreshCw,
+} from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 
 export default function Executor() {
   const { id } = useParams()
   const navigate = useNavigate()
   const searchParams = new URLSearchParams(window.location.search)
   const taskId = searchParams.get('taskId')
-  const { templates, drafts, saveDraft, submitAudit, currentUser, tasks, updateTask } =
+  const { templates, drafts, saveDraft, clearDraft, submitAudit, currentUser, tasks, updateTask } =
     useAppStore()
 
   const template = templates.find((t) => t.id === id)
@@ -24,6 +43,7 @@ export default function Executor() {
   const [savingStatus, setSavingStatus] = useState('')
   const [uploadingCount, setUploadingCount] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
 
   const handleUploadStart = () => setUploadingCount((prev) => prev + 1)
   const handleUploadEnd = () => setUploadingCount((prev) => Math.max(0, prev - 1))
@@ -223,6 +243,21 @@ export default function Executor() {
     setCurrentStep((s) => Math.max(0, s - 1))
   }
 
+  const handleReset = () => {
+    setAnswers({})
+    setCurrentStep(0)
+    if (template) {
+      clearDraft(template.id)
+      draftRestoredRef.current = template.id // Prevent auto-recovering deleted draft
+    }
+    setSavingStatus('Formulário reiniciado')
+    setIsResetDialogOpen(false)
+    toast({
+      title: 'Formulário Reiniciado',
+      description: 'Todos os dados foram limpos com sucesso.',
+    })
+  }
+
   const handleSubmit = async () => {
     if (!validateCurrentBlock()) return
 
@@ -366,17 +401,51 @@ export default function Executor() {
             {evaluatedRules.blocks[0] || 'Submissão Bloqueada (Regra de Negócio)'}
           </div>
         )}
-        <div className="flex justify-between items-center max-w-3xl w-full mx-auto gap-4">
-          <Button
-            variant="outline"
-            onClick={handlePrev}
-            disabled={currentStep === 0 || isSubmitting}
-            className="w-32 h-12"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" /> Voltar
-          </Button>
+        <div className="flex justify-between items-center max-w-3xl w-full mx-auto gap-2 sm:gap-4">
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handlePrev}
+              disabled={currentStep === 0 || isSubmitting}
+              className="w-20 sm:w-32 h-12"
+            >
+              <ArrowLeft className="h-4 w-4 sm:mr-2" />{' '}
+              <span className="hidden sm:inline">Voltar</span>
+            </Button>
 
-          <div className="hidden sm:flex items-center text-xs text-muted-foreground font-medium flex-1 justify-center">
+            <AlertDialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="destructive"
+                  className="h-12 w-12 sm:w-auto px-0 sm:px-4 shrink-0"
+                  title="Reiniciar Formulário"
+                >
+                  <RefreshCw className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Reiniciar Formulário</span>
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Atenção</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Deseja realmente reiniciar o formulário? Todos os dados preenchidos e o rascunho
+                    salvo serão perdidos permanentemente.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleReset}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Sim, reiniciar
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+
+          <div className="hidden md:flex items-center text-xs text-muted-foreground font-medium flex-1 justify-center">
             {savingStatus && <CheckCircle2 className="h-3 w-3 text-emerald-500 mr-1" />}
             {savingStatus}
           </div>

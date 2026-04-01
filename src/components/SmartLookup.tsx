@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Input } from '@/components/ui/input'
+import useAppStore from '@/stores/useAppStore'
 
 export interface SmartLookupOption {
   value: string
@@ -12,6 +13,7 @@ export interface SmartLookupOption {
 
 export interface SmartLookupProps {
   options?: SmartLookupOption[]
+  entitySlug?: string
   value: string
   onChange: (value: string) => void
   placeholder?: string
@@ -19,16 +21,46 @@ export interface SmartLookupProps {
 
 export function SmartLookup({
   options,
+  entitySlug,
   value,
   onChange,
   placeholder = 'Selecione...',
 }: SmartLookupProps) {
   const [open, setOpen] = React.useState(false)
   const [search, setSearch] = React.useState('')
+  const { entityDefs, entityRecords } = useAppStore()
 
-  const isOptionsLoading = !options
+  const resolvedOptions = React.useMemo(() => {
+    if (options) return options
 
-  const filteredOptions = (options || []).filter((opt) =>
+    if (entitySlug) {
+      const def = entityDefs.find((d) => d.slug === entitySlug)
+      if (!def) return []
+
+      const records = entityRecords.filter((r) => r.entity_id === def.id)
+      return records.map((r) => {
+        const label =
+          r.data?.name ||
+          r.data?.nome ||
+          r.data?.title ||
+          r.data?.descricao ||
+          r.data?.razao_social ||
+          Object.values(r.data || {})[0] ||
+          r.id
+
+        return {
+          value: r.id,
+          label: String(label),
+        }
+      })
+    }
+
+    return []
+  }, [options, entitySlug, entityDefs, entityRecords])
+
+  const isOptionsLoading = !options && !entitySlug
+
+  const filteredOptions = resolvedOptions.filter((opt) =>
     opt?.label?.toLowerCase().includes(search.toLowerCase()),
   )
 
@@ -51,7 +83,7 @@ export function SmartLookup({
         >
           <span className="truncate">
             {value
-              ? (options || []).find((option) => option.value === value)?.label || placeholder
+              ? resolvedOptions.find((option) => option.value === value)?.label || placeholder
               : placeholder}
           </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
