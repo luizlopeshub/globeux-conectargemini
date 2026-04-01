@@ -240,7 +240,11 @@ export default function Executor() {
   }
 
   const handlePrev = () => {
-    setCurrentStep((s) => Math.max(0, s - 1))
+    if (currentStep === 0) {
+      navigate('/')
+    } else {
+      setCurrentStep((s) => Math.max(0, s - 1))
+    }
   }
 
   const handleReset = () => {
@@ -406,7 +410,7 @@ export default function Executor() {
             <Button
               variant="outline"
               onClick={handlePrev}
-              disabled={currentStep === 0 || isSubmitting}
+              disabled={isSubmitting}
               className="w-20 sm:w-32 h-12"
             >
               <ArrowLeft className="h-4 w-4 sm:mr-2" />{' '}
@@ -482,7 +486,7 @@ export default function Executor() {
                 </>
               ) : (
                 <>
-                  Próximo <ArrowRight className="h-4 w-4 ml-2" />
+                  Avançar <ArrowRight className="h-4 w-4 ml-2" />
                 </>
               )}
             </Button>
