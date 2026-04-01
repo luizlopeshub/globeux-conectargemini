@@ -11,14 +11,14 @@ export interface SmartLookupOption {
 }
 
 export interface SmartLookupProps {
-  options: SmartLookupOption[]
+  options?: SmartLookupOption[]
   value: string
   onChange: (value: string) => void
   placeholder?: string
 }
 
 export function SmartLookup({
-  options = [],
+  options,
   value,
   onChange,
   placeholder = 'Selecione...',
@@ -51,7 +51,7 @@ export function SmartLookup({
         >
           <span className="truncate">
             {value
-              ? options.find((option) => option.value === value)?.label || placeholder
+              ? (options || []).find((option) => option.value === value)?.label || placeholder
               : placeholder}
           </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import useAppStore from '@/stores/useAppStore'
 import { FieldRenderer } from '@/components/executor/FieldRenderer'
@@ -28,11 +28,17 @@ export default function Executor() {
   const handleUploadStart = () => setUploadingCount((prev) => prev + 1)
   const handleUploadEnd = () => setUploadingCount((prev) => Math.max(0, prev - 1))
 
+  const draftRestoredRef = useRef<string | null>(null)
+
   useEffect(() => {
-    if (id && drafts[id]) {
-      setAnswers(drafts[id].answers || {})
-      setCurrentStep(drafts[id].step || 0)
-      toast({ description: 'Rascunho recuperado. Retornando ao ponto salvo.' })
+    if (id && drafts[id] && draftRestoredRef.current !== id) {
+      const savedAnswers = drafts[id].answers || {}
+      if (Object.keys(savedAnswers).length > 0) {
+        setAnswers(savedAnswers)
+        setCurrentStep(drafts[id].step || 0)
+        toast({ description: 'Rascunho recuperado. Retornando ao ponto salvo.' })
+      }
+      draftRestoredRef.current = id
     }
   }, [id, drafts])
 

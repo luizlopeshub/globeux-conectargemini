@@ -41,6 +41,12 @@ interface AppState {
   apiSettings: ApiSettings | null
 }
 
+let initialDrafts = {}
+try {
+  const stored = localStorage.getItem('@globeux_drafts')
+  if (stored) initialDrafts = JSON.parse(stored)
+} catch (e) {}
+
 let globalState: AppState = {
   isInitializing: true,
   isLoading: false,
@@ -49,7 +55,7 @@ let globalState: AppState = {
   currentUser: (pb.authStore.record as any) || null,
   templates: [],
   audits: [],
-  drafts: {},
+  drafts: initialDrafts,
   entityDefs: [],
   entityRecords: [],
   schedules: [],
@@ -120,8 +126,11 @@ export default function useAppStore() {
   return {
     ...state,
     setCurrentUser: (user: User | null) => update({ currentUser: user }),
-    saveDraft: (tid: string, data: DraftState) =>
-      update({ drafts: { ...globalState.drafts, [tid]: data } }),
+    saveDraft: (tid: string, data: DraftState) => {
+      const newDrafts = { ...globalState.drafts, [tid]: data }
+      update({ drafts: newDrafts })
+      localStorage.setItem('@globeux_drafts', JSON.stringify(newDrafts))
+    },
 
     login: async (email: string, pass: string) => {
       await withLoading(async () => {
@@ -349,6 +358,8 @@ export default function useAppStore() {
         const mappedAudit = { ...a, id: response.id, taskId: task.id, answers: mappedAnswers }
         const nd = { ...globalState.drafts }
         delete nd[a.templateId]
+
+        localStorage.setItem('@globeux_drafts', JSON.stringify(nd))
 
         update({
           audits: [mappedAudit, ...globalState.audits],
