@@ -231,16 +231,15 @@ export default function Executor() {
     return true
   })
 
-  const isNextDisabled = useMemo(() => {
-    if (hasHardErrors) return true
-    return visibleCurrentFields.some((f) => {
+  const isNextDisabled =
+    hasHardErrors ||
+    visibleCurrentFields.some((f) => {
       const isRequired = f.required || evaluatedRules.required.has(f.id)
       const val = answers[f.id]
       const isEmpty =
         val === undefined || val === null || val === '' || (Array.isArray(val) && val.length === 0)
       return isRequired && isEmpty
     })
-  }, [hasHardErrors, visibleCurrentFields, evaluatedRules.required, answers])
 
   const handleNext = () => {
     if (isNextDisabled) return
