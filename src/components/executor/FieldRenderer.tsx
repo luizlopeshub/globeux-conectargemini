@@ -7,8 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Camera, MapPin, Edit3, Loader2, AlertTriangle, Calculator } from 'lucide-react'
 import { useMemo, useState, useEffect } from 'react'
-import { useParams } from 'react-router-dom'
-import useAppStore from '@/stores/useAppStore'
+import { useLocation } from 'react-router-dom'
 import { SmartLookup } from '@/components/SmartLookup'
 import pb from '@/lib/pocketbase/client'
 import { convertUnit, UNITS } from '@/lib/utils/conversions'
@@ -36,9 +35,10 @@ export function FieldRenderer({
   onUploadStart,
   onUploadEnd,
 }: Props) {
-  const store = useAppStore()
-  const { id } = useParams()
   const [isUploading, setIsUploading] = useState(false)
+  const location = useLocation()
+  const searchParams = new URLSearchParams(location.search)
+  const taskId = searchParams.get('taskId')
 
   const options = field.options ? field.options.split(',').map((s) => s.trim()) : []
 
@@ -94,6 +94,8 @@ export function FieldRenderer({
             if (!isFinite(calculatedValue) || isNaN(calculatedValue)) {
               calculatedValue = 0
             }
+          } else {
+            calculatedValue = 0
           }
         }
       } catch (e) {
@@ -154,18 +156,14 @@ export function FieldRenderer({
 
       let record
 
-      if (id) {
+      if (taskId) {
         try {
-          record = await pb.collection('responses').update(id, formData)
+          const existing = await pb.collection('responses').getFirstListItem(`task_id="${taskId}"`)
+          record = await pb.collection('responses').update(existing.id, formData)
         } catch (err) {
-          try {
-            const existing = await pb.collection('responses').getFirstListItem(`task_id="${id}"`)
-            record = await pb.collection('responses').update(existing.id, formData)
-          } catch (err2) {
-            console.warn(
-              'Nenhum registro de resposta encontrado, a imagem será salva localmente até o envio.',
-            )
-          }
+          console.warn(
+            'Nenhum registro de resposta encontrado, a imagem será salva localmente até o envio.',
+          )
         }
       }
 

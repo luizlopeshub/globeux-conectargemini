@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import useAppStore from '@/stores/useAppStore'
 import { FieldRenderer } from '@/components/executor/FieldRenderer'
 import { Button } from '@/components/ui/button'
@@ -38,7 +38,8 @@ import {
 export default function Executor() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const searchParams = new URLSearchParams(window.location.search)
+  const location = useLocation()
+  const searchParams = new URLSearchParams(location.search)
   const taskId = searchParams.get('taskId')
   const { templates, drafts, saveDraft, clearDraft, submitAudit, currentUser, tasks, updateTask } =
     useAppStore()
@@ -50,12 +51,15 @@ export default function Executor() {
   const [uploadingCount, setUploadingCount] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
-  const [validationAttempted, setValidationAttempted] = useState(false)
 
   const handleUploadStart = () => setUploadingCount((prev) => prev + 1)
   const handleUploadEnd = () => setUploadingCount((prev) => Math.max(0, prev - 1))
 
   const draftRestoredRef = useRef<string | null>(null)
+
+  // Safe accessors to prevent crashes if template is undefined or incomplete
+  const templateFields = useMemo(() => template?.fields || [], [template])
+  const templateBlocks = useMemo(() => template?.blocks || [], [template])
 
   useEffect(() => {
     if (id && drafts[id] && draftRestoredRef.current !== id) {
@@ -70,15 +74,14 @@ export default function Executor() {
   }, [id, drafts])
 
   const visibleBlocks = useMemo(() => {
-    if (!template?.blocks) return []
-    return template.blocks.filter((b) => {
+    return templateBlocks.filter((b) => {
       if (!b.logicDependsOn) return true
       return answers[b.logicDependsOn] === b.logicValue
     })
-  }, [template, answers])
+  }, [templateBlocks, answers])
 
   useEffect(() => {
-    if (visibleBlocks.length >= 0 && currentStep > visibleBlocks.length) {
+    if (currentStep > visibleBlocks.length) {
       setCurrentStep(visibleBlocks.length)
     }
   }, [visibleBlocks.length, currentStep])
@@ -96,8 +99,7 @@ export default function Executor() {
 
   const hardValidationErrors = useMemo(() => {
     const errors: Record<string, string> = {}
-    if (!template) return errors
-    template.fields.forEach((f) => {
+    templateFields.forEach((f) => {
       if (
         f.type === 'number' &&
         f.hardValidation &&
@@ -116,7 +118,7 @@ export default function Executor() {
       }
     })
     return errors
-  }, [answers, template])
+  }, [answers, templateFields])
 
   const evaluatedRules = useMemo(() => {
     const state = {
@@ -130,9 +132,7 @@ export default function Executor() {
       escalate: false,
     }
 
-    if (!template) return state
-
-    template.fields.forEach((f) => {
+    templateFields.forEach((f) => {
       if (!f.logicRules) return
       f.logicRules.forEach((rule) => {
         if (rule.action === 'SHOW_FIELD' && rule.targetId) {
@@ -194,7 +194,7 @@ export default function Executor() {
       })
     })
     return state
-  }, [answers, template])
+  }, [answers, templateFields])
 
   const hasHardErrors =
     Object.keys(hardValidationErrors).length > 0 || evaluatedRules.blocks.length > 0
@@ -203,8 +203,7 @@ export default function Executor() {
   if (!currentUser) return <div className="p-8 text-center">Usuário não autenticado.</div>
 
   const currentBlock = visibleBlocks[currentStep]
-
-  const currentFields = template.fields.filter((f) => f.blockId === currentBlock?.id)
+  const currentFields = templateFields.filter((f) => f.blockId === currentBlock?.id)
 
   const visibleCurrentFields = currentFields.filter((f) => {
     if (f.logicDependsOn && answers[f.logicDependsOn] !== f.logicValue) return false
@@ -213,52 +212,28 @@ export default function Executor() {
     return true
   })
 
-  const totalSteps = visibleBlocks.length + 1
-  const isSummaryStep = currentStep === visibleBlocks.length
-
-  const progressPercent = totalSteps ? ((currentStep + 1) / totalSteps) * 100 : 0
-  const isLastStep = currentStep === totalSteps - 1
-
-  const validateCurrentBlock = () => {
-    if (hasHardErrors) {
-      toast({
-        title: 'Bloqueio de Validação',
-        description:
-          evaluatedRules.blocks[0] || 'Corrija os campos em vermelho antes de prosseguir.',
-        variant: 'destructive',
-      })
-      return false
-    }
-
-    let isValid = true
-    for (const f of visibleCurrentFields) {
+  const isNextDisabled = useMemo(() => {
+    if (hasHardErrors) return true
+    return visibleCurrentFields.some((f) => {
       const isRequired = f.required || evaluatedRules.required.has(f.id)
       const val = answers[f.id]
       const isEmpty =
         val === undefined || val === null || val === '' || (Array.isArray(val) && val.length === 0)
-      if (isRequired && isEmpty) {
-        toast({ variant: 'destructive', description: `Preencha o campo obrigatório: ${f.label}` })
-        isValid = false
-        break
-      }
-    }
-    return isValid
-  }
+      return isRequired && isEmpty
+    })
+  }, [hasHardErrors, visibleCurrentFields, evaluatedRules.required, answers])
+
+  const totalSteps = visibleBlocks.length + 1
+  const isSummaryStep = currentStep === visibleBlocks.length
+  const progressPercent = totalSteps ? ((currentStep + 1) / totalSteps) * 100 : 0
 
   const handleNext = () => {
-    setValidationAttempted(true)
-    if (!validateCurrentBlock()) return
+    if (isNextDisabled) return
     setCurrentStep((s) => s + 1)
-    setValidationAttempted(false)
   }
 
   const handlePrev = () => {
-    setValidationAttempted(false)
-    if (currentStep === 0) {
-      navigate('/')
-    } else {
-      setCurrentStep((s) => Math.max(0, s - 1))
-    }
+    setCurrentStep((s) => Math.max(0, s - 1))
   }
 
   const handleReset = () => {
@@ -266,7 +241,7 @@ export default function Executor() {
     setCurrentStep(0)
     if (template) {
       clearDraft(template.id)
-      draftRestoredRef.current = template.id // Prevent auto-recovering deleted draft
+      draftRestoredRef.current = template.id
     }
     setSavingStatus('Formulário reiniciado')
     setIsResetDialogOpen(false)
@@ -285,7 +260,7 @@ export default function Executor() {
       })
     }
 
-    const missing = template.fields.find((f) => {
+    const missing = templateFields.find((f) => {
       const blockIsVisible = visibleBlocks.some((b) => b.id === f.blockId)
       if (!blockIsVisible) return false
 
@@ -298,8 +273,7 @@ export default function Executor() {
       const val = answers[f.id]
       const isEmpty =
         val === undefined || val === null || val === '' || (Array.isArray(val) && val.length === 0)
-      if (isRequired && isEmpty) return true
-      return false
+      return isRequired && isEmpty
     })
 
     if (missing) {
@@ -312,7 +286,6 @@ export default function Executor() {
 
     setIsSubmitting(true)
     const newAuditId = `aud_${generateId().substring(0, 8)}`
-
     const payloadAnswers = {
       ...answers,
       _metadata: {
@@ -340,6 +313,25 @@ export default function Executor() {
       if (taskToUpdate) {
         updateTask({ ...taskToUpdate, status: 'completed' })
       }
+
+      try {
+        const existing = await pb.collection('responses').getFirstListItem(`task_id="${taskId}"`)
+        await pb.collection('responses').update(existing.id, {
+          status: 'completed',
+          data: payloadAnswers,
+        })
+      } catch (err) {
+        try {
+          await pb.collection('responses').create({
+            task_id: taskId,
+            user_id: currentUser.id,
+            status: 'completed',
+            data: payloadAnswers,
+          })
+        } catch (e) {
+          console.error('Falha ao atualizar resposta no servidor', e)
+        }
+      }
     }
 
     if (evaluatedRules.actionPlans.length > 0) {
@@ -365,13 +357,14 @@ export default function Executor() {
       }
     }
 
+    clearDraft(template.id)
     setIsSubmitting(false)
     toast({ title: 'Auditoria Concluída', description: 'Salvando e gerando o relatório final...' })
     navigate('/logs', { state: { autoPrintId: newAuditId } })
   }
 
   return (
-    <div className="max-w-3xl mx-auto pb-28 pt-4">
+    <div className="max-w-3xl mx-auto pb-28 pt-4 px-4 sm:px-0">
       <div className="mb-8 space-y-4">
         <div>
           <h1 className="text-2xl font-bold">{template.name}</h1>
@@ -401,7 +394,7 @@ export default function Executor() {
             defaultValue={visibleBlocks.map((b) => b.id)}
           >
             {visibleBlocks.map((block) => {
-              const blockFields = template.fields.filter((f) => f.blockId === block.id)
+              const blockFields = templateFields.filter((f) => f.blockId === block.id)
               const visibleFields = blockFields.filter((f) => {
                 if (f.logicDependsOn && answers[f.logicDependsOn] !== f.logicValue) return false
                 if (evaluatedRules.hidden.has(f.id)) return false
@@ -425,15 +418,17 @@ export default function Executor() {
                     <div className="space-y-3 pt-2">
                       {visibleFields.map((f) => {
                         const val = answers[f.id]
+                        const isEmpty =
+                          val === undefined ||
+                          val === null ||
+                          val === '' ||
+                          (Array.isArray(val) && val.length === 0)
+
                         let displayVal: React.ReactNode = (
                           <span className="text-muted-foreground italic">Não preenchido</span>
                         )
-                        if (
-                          val !== undefined &&
-                          val !== null &&
-                          val !== '' &&
-                          !(Array.isArray(val) && val.length === 0)
-                        ) {
+
+                        if (!isEmpty) {
                           if (f.type === 'camera' || f.type === 'signature') {
                             displayVal = (
                               <img
@@ -451,17 +446,31 @@ export default function Executor() {
                           }
                         }
 
+                        const err = hardValidationErrors[f.id]
+                        const isDynamicRequired = f.required || evaluatedRules.required.has(f.id)
+
                         return (
                           <div
                             key={f.id}
-                            className="grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-4 border-b last:border-0 pb-3 last:pb-0"
+                            className={`grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-4 border-b last:border-0 pb-3 last:pb-0 ${err ? 'bg-destructive/5 -mx-4 px-4 pt-2' : ''}`}
                           >
                             <span className="text-sm font-medium text-muted-foreground sm:col-span-1">
                               {f.label}
+                              {isDynamicRequired && (
+                                <span className="text-destructive ml-1">*</span>
+                              )}
                             </span>
-                            <span className="text-sm font-semibold text-foreground sm:col-span-2 flex items-center break-all">
-                              {displayVal}
-                            </span>
+                            <div className="sm:col-span-2 flex flex-col">
+                              <span className="text-sm font-semibold text-foreground flex items-center break-all">
+                                {displayVal}
+                              </span>
+                              {err && <span className="text-xs text-destructive mt-1">{err}</span>}
+                              {isEmpty && !isDynamicRequired && (
+                                <span className="text-xs text-muted-foreground mt-1">
+                                  Campo opcional sem resposta
+                                </span>
+                              )}
+                            </div>
                           </div>
                         )
                       })}
@@ -481,12 +490,6 @@ export default function Executor() {
             {visibleCurrentFields.map((field) => {
               const isRequired = field.required || evaluatedRules.required.has(field.id)
               const val = answers[field.id]
-              const isEmpty =
-                val === undefined ||
-                val === null ||
-                val === '' ||
-                (Array.isArray(val) && val.length === 0)
-              const showValidationError = validationAttempted && isRequired && isEmpty
 
               return (
                 <FieldRenderer
@@ -495,10 +498,7 @@ export default function Executor() {
                   value={val}
                   onChange={(v) => setAnswers((p) => ({ ...p, [field.id]: v }))}
                   allAnswers={answers}
-                  error={
-                    hardValidationErrors[field.id] ||
-                    (showValidationError ? 'Este campo é obrigatório.' : undefined)
-                  }
+                  error={hardValidationErrors[field.id]}
                   alert={evaluatedRules.alerts[field.id]}
                   dynamicRequired={isRequired}
                   onUploadStart={handleUploadStart}
@@ -524,15 +524,27 @@ export default function Executor() {
         )}
         <div className="flex justify-between items-center max-w-3xl w-full mx-auto gap-2 sm:gap-4">
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={handlePrev}
-              disabled={isSubmitting}
-              className="w-20 sm:w-32 h-12"
-            >
-              <ArrowLeft className="h-4 w-4 sm:mr-2" />{' '}
-              <span className="hidden sm:inline">Voltar</span>
-            </Button>
+            {currentStep > 0 ? (
+              <Button
+                variant="outline"
+                onClick={handlePrev}
+                disabled={isSubmitting}
+                className="w-20 sm:w-32 h-12"
+              >
+                <ArrowLeft className="h-4 w-4 sm:mr-2" />{' '}
+                <span className="hidden sm:inline">Voltar</span>
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                onClick={() => navigate('/')}
+                disabled={isSubmitting}
+                className="w-20 sm:w-32 h-12"
+              >
+                <ArrowLeft className="h-4 w-4 sm:mr-2" />{' '}
+                <span className="hidden sm:inline">Sair</span>
+              </Button>
+            )}
 
             <AlertDialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
               <AlertDialogTrigger asChild>
@@ -594,7 +606,7 @@ export default function Executor() {
           ) : (
             <Button
               onClick={handleNext}
-              disabled={hasHardErrors || uploadingCount > 0 || isSubmitting}
+              disabled={isNextDisabled || uploadingCount > 0 || isSubmitting}
               className="w-32 h-12 transition-all"
             >
               {uploadingCount > 0 ? (
