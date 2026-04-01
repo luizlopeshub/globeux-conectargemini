@@ -3,6 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom'
 import useAppStore from '@/stores/useAppStore'
 import { FieldRenderer } from '@/components/executor/FieldRenderer'
 import { Button } from '@/components/ui/button'
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion'
 import { Card } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { toast } from '@/hooks/use-toast'
@@ -44,6 +50,7 @@ export default function Executor() {
   const [uploadingCount, setUploadingCount] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
+  const [validationAttempted, setValidationAttempted] = useState(false)
 
   const handleUploadStart = () => setUploadingCount((prev) => prev + 1)
   const handleUploadEnd = () => setUploadingCount((prev) => Math.max(0, prev - 1))
@@ -71,8 +78,8 @@ export default function Executor() {
   }, [template, answers])
 
   useEffect(() => {
-    if (visibleBlocks.length > 0 && currentStep >= visibleBlocks.length) {
-      setCurrentStep(Math.max(0, visibleBlocks.length - 1))
+    if (visibleBlocks.length >= 0 && currentStep > visibleBlocks.length) {
+      setCurrentStep(visibleBlocks.length)
     }
   }, [visibleBlocks.length, currentStep])
 
@@ -206,10 +213,11 @@ export default function Executor() {
     return true
   })
 
-  const progressPercent = visibleBlocks.length
-    ? ((currentStep + 1) / visibleBlocks.length) * 100
-    : 0
-  const isLastStep = currentStep === visibleBlocks.length - 1
+  const totalSteps = visibleBlocks.length + 1
+  const isSummaryStep = currentStep === visibleBlocks.length
+
+  const progressPercent = totalSteps ? ((currentStep + 1) / totalSteps) * 100 : 0
+  const isLastStep = currentStep === totalSteps - 1
 
   const validateCurrentBlock = () => {
     if (hasHardErrors) {
@@ -225,7 +233,10 @@ export default function Executor() {
     let isValid = true
     for (const f of visibleCurrentFields) {
       const isRequired = f.required || evaluatedRules.required.has(f.id)
-      if (isRequired && !answers[f.id]) {
+      const val = answers[f.id]
+      const isEmpty =
+        val === undefined || val === null || val === '' || (Array.isArray(val) && val.length === 0)
+      if (isRequired && isEmpty) {
         toast({ variant: 'destructive', description: `Preencha o campo obrigatório: ${f.label}` })
         isValid = false
         break
@@ -235,11 +246,14 @@ export default function Executor() {
   }
 
   const handleNext = () => {
+    setValidationAttempted(true)
     if (!validateCurrentBlock()) return
     setCurrentStep((s) => s + 1)
+    setValidationAttempted(false)
   }
 
   const handlePrev = () => {
+    setValidationAttempted(false)
     if (currentStep === 0) {
       navigate('/')
     } else {
@@ -263,8 +277,6 @@ export default function Executor() {
   }
 
   const handleSubmit = async () => {
-    if (!validateCurrentBlock()) return
-
     if (evaluatedRules.blocks.length > 0) {
       return toast({
         title: 'Submissão Bloqueada',
@@ -283,7 +295,10 @@ export default function Executor() {
         return false
 
       const isRequired = f.required || evaluatedRules.required.has(f.id)
-      if (isRequired && !answers[f.id]) return true
+      const val = answers[f.id]
+      const isEmpty =
+        val === undefined || val === null || val === '' || (Array.isArray(val) && val.length === 0)
+      if (isRequired && isEmpty) return true
       return false
     })
 
@@ -365,7 +380,7 @@ export default function Executor() {
         <div className="space-y-2">
           <div className="flex justify-between text-sm font-medium text-muted-foreground">
             <span>
-              Passo {currentStep + 1} de {visibleBlocks.length || 1}
+              Passo {currentStep + 1} de {totalSteps} {isSummaryStep && '(Resumo)'}
             </span>
             <span className="text-primary">{Math.round(progressPercent)}% Concluído</span>
           </div>
@@ -373,29 +388,131 @@ export default function Executor() {
         </div>
       </div>
 
-      {currentBlock && (
+      {isSummaryStep ? (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-          <h2 className="text-xl font-semibold border-b pb-2 text-primary">{currentBlock.name}</h2>
-          {visibleCurrentFields.map((field) => (
-            <FieldRenderer
-              key={field.id}
-              field={field}
-              value={answers[field.id]}
-              onChange={(v) => setAnswers((p) => ({ ...p, [field.id]: v }))}
-              allAnswers={answers}
-              error={hardValidationErrors[field.id]}
-              alert={evaluatedRules.alerts[field.id]}
-              dynamicRequired={evaluatedRules.required.has(field.id)}
-              onUploadStart={handleUploadStart}
-              onUploadEnd={handleUploadEnd}
-            />
-          ))}
-          {visibleCurrentFields.length === 0 && (
-            <p className="text-muted-foreground italic p-4 text-center">
-              Nenhum campo visível neste bloco ou logicamente ocultos.
-            </p>
-          )}
+          <h2 className="text-xl font-semibold border-b pb-2 text-primary">Resumo da Auditoria</h2>
+          <p className="text-muted-foreground text-sm">
+            Revise as informações preenchidas antes de finalizar.
+          </p>
+
+          <Accordion
+            type="multiple"
+            className="w-full"
+            defaultValue={visibleBlocks.map((b) => b.id)}
+          >
+            {visibleBlocks.map((block) => {
+              const blockFields = template.fields.filter((f) => f.blockId === block.id)
+              const visibleFields = blockFields.filter((f) => {
+                if (f.logicDependsOn && answers[f.logicDependsOn] !== f.logicValue) return false
+                if (evaluatedRules.hidden.has(f.id)) return false
+                if (evaluatedRules.shownTargets.has(f.id) && !evaluatedRules.shownActive.has(f.id))
+                  return false
+                return true
+              })
+
+              if (visibleFields.length === 0) return null
+
+              return (
+                <AccordionItem
+                  key={block.id}
+                  value={block.id}
+                  className="bg-card rounded-md border px-4 mb-4 shadow-sm"
+                >
+                  <AccordionTrigger className="font-semibold hover:no-underline">
+                    {block.name}
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="space-y-3 pt-2">
+                      {visibleFields.map((f) => {
+                        const val = answers[f.id]
+                        let displayVal: React.ReactNode = (
+                          <span className="text-muted-foreground italic">Não preenchido</span>
+                        )
+                        if (
+                          val !== undefined &&
+                          val !== null &&
+                          val !== '' &&
+                          !(Array.isArray(val) && val.length === 0)
+                        ) {
+                          if (f.type === 'camera' || f.type === 'signature') {
+                            displayVal = (
+                              <img
+                                src={val instanceof File ? URL.createObjectURL(val) : val}
+                                className="h-16 rounded border object-cover"
+                                alt="Anexo"
+                              />
+                            )
+                          } else if (Array.isArray(val)) {
+                            displayVal = val.join(', ')
+                          } else if (typeof val === 'boolean') {
+                            displayVal = val ? 'Sim' : 'Não'
+                          } else {
+                            displayVal = String(val)
+                          }
+                        }
+
+                        return (
+                          <div
+                            key={f.id}
+                            className="grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-4 border-b last:border-0 pb-3 last:pb-0"
+                          >
+                            <span className="text-sm font-medium text-muted-foreground sm:col-span-1">
+                              {f.label}
+                            </span>
+                            <span className="text-sm font-semibold text-foreground sm:col-span-2 flex items-center break-all">
+                              {displayVal}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              )
+            })}
+          </Accordion>
         </div>
+      ) : (
+        currentBlock && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+            <h2 className="text-xl font-semibold border-b pb-2 text-primary">
+              {currentBlock.name}
+            </h2>
+            {visibleCurrentFields.map((field) => {
+              const isRequired = field.required || evaluatedRules.required.has(field.id)
+              const val = answers[field.id]
+              const isEmpty =
+                val === undefined ||
+                val === null ||
+                val === '' ||
+                (Array.isArray(val) && val.length === 0)
+              const showValidationError = validationAttempted && isRequired && isEmpty
+
+              return (
+                <FieldRenderer
+                  key={field.id}
+                  field={field}
+                  value={val}
+                  onChange={(v) => setAnswers((p) => ({ ...p, [field.id]: v }))}
+                  allAnswers={answers}
+                  error={
+                    hardValidationErrors[field.id] ||
+                    (showValidationError ? 'Este campo é obrigatório.' : undefined)
+                  }
+                  alert={evaluatedRules.alerts[field.id]}
+                  dynamicRequired={isRequired}
+                  onUploadStart={handleUploadStart}
+                  onUploadEnd={handleUploadEnd}
+                />
+              )
+            })}
+            {visibleCurrentFields.length === 0 && (
+              <p className="text-muted-foreground italic p-4 text-center">
+                Nenhum campo visível neste bloco ou logicamente ocultos.
+              </p>
+            )}
+          </div>
+        )
       )}
 
       <Card className="fixed bottom-0 left-0 right-0 p-4 bg-background/95 backdrop-blur-md border-t md:left-[16rem] z-10 flex flex-col shadow-[0_-10px_20px_rgba(0,0,0,0.05)] rounded-none">
