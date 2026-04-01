@@ -28,16 +28,16 @@ export function SmartLookup({
 }: SmartLookupProps) {
   const [open, setOpen] = React.useState(false)
   const [search, setSearch] = React.useState('')
-  const { entityDefs, entityRecords } = useAppStore()
+  const { entityDefs, entityRecords, isInitializing } = useAppStore()
 
   const resolvedOptions = React.useMemo(() => {
     if (options) return options
 
     if (entitySlug) {
-      const def = entityDefs.find((d) => d.slug === entitySlug)
+      const def = (entityDefs || []).find((d) => d.slug === entitySlug)
       if (!def) return []
 
-      const records = entityRecords.filter((r) => r.entity_id === def.id)
+      const records = (entityRecords || []).filter((r) => r.entity_id === def.id)
       return records.map((r) => {
         const label =
           r.data?.name ||
@@ -58,9 +58,9 @@ export function SmartLookup({
     return []
   }, [options, entitySlug, entityDefs, entityRecords])
 
-  const isOptionsLoading = !options && !entitySlug
+  const isOptionsLoading = isInitializing && !options
 
-  const filteredOptions = resolvedOptions.filter((opt) =>
+  const filteredOptions = (resolvedOptions || []).filter((opt) =>
     opt?.label?.toLowerCase().includes(search.toLowerCase()),
   )
 

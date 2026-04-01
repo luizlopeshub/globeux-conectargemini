@@ -88,13 +88,18 @@ export function FieldRenderer({
         }
       } catch (e) {
         console.error('Erro na fórmula de cálculo:', e)
+        calculatedValue = 0
       }
     } else if (field.calcSourceFields?.length) {
-      const vals = field.calcSourceFields.map((id) => Number(allAnswers[id]) || 0)
+      const vals = field.calcSourceFields.map((id) => {
+        const val = allAnswers[id]
+        if (val === undefined || val === null || val === '') return 0
+        const num = Number(val)
+        return isNaN(num) ? 0 : num
+      })
       const sum = vals.reduce((acc, curr) => acc + curr, 0)
       calculatedValue = field.calcOperation === 'average' && vals.length ? sum / vals.length : sum
     }
-
     if (field.unit_category && field.unit_source && field.unit_target) {
       calculatedValue = convertUnit(
         calculatedValue,
@@ -190,14 +195,10 @@ export function FieldRenderer({
 
         return (
           <SmartLookup
-            value={value}
+            value={value || ''}
             onChange={onChange}
-            defaultEntityType={defaultEntityType}
-            allowEntityChange={!defaultEntityType}
-            error={!!error}
-            dataSourceType={dataSourceType as any}
-            apiUrl={field.apiUrl}
-            apiMapping={field.apiMapping}
+            entitySlug={defaultEntityType}
+            placeholder="Selecione um registro..."
           />
         )
       }

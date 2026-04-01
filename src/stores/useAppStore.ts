@@ -176,43 +176,37 @@ export default function useAppStore() {
         const isAdmin = currentUserRole === 'admin'
         const currentUserId = pb.authStore.record?.id
 
-        const [
-          templatesRes,
-          schedulesRes,
-          tasksRes,
-          actionPlansRes,
-          responsesRes,
-          subjectsRes,
-          departmentsRes,
-          entityDefsRes,
-          masterDataRes,
-          usersRes,
-          apiSettingsRes,
-        ] = await Promise.all([
-          pb.collection('templates').getFullList(),
-          pb
-            .collection('schedules')
-            .getFullList(isAdmin ? {} : { filter: `assigned_to = "${currentUserId}"` }),
-          pb
-            .collection('tasks')
-            .getFullList(isAdmin ? {} : { filter: `user_id = "${currentUserId}"` }),
-          pb
-            .collection('action_plans')
-            .getFullList(isAdmin ? {} : { filter: `responsible_id = "${currentUserId}"` }),
-          pb.collection('responses').getFullList({
-            expand: 'task_id,user_id',
-            filter: isAdmin ? '' : `user_id = "${currentUserId}"`,
-          }),
-          pb.collection('subjects').getFullList(),
-          pb.collection('departments').getFullList(),
-          pb.collection('entity_definitions').getFullList(),
-          pb.collection('master_data_entries').getFullList(),
-          isAdmin
-            ? pb.collection('users').getFullList()
-            : Promise.resolve(pb.authStore.record ? [pb.authStore.record] : []),
-          isAdmin ? pb.collection('api_settings').getFullList() : Promise.resolve([]),
-        ])
+        // 1. Global Data (always fetched for all authenticated users)
+        const [templatesRes, subjectsRes, departmentsRes, entityDefsRes, masterDataRes] =
+          await Promise.all([
+            pb.collection('templates').getFullList(),
+            pb.collection('subjects').getFullList(),
+            pb.collection('departments').getFullList(),
+            pb.collection('entity_definitions').getFullList(),
+            pb.collection('master_data_entries').getFullList(),
+          ])
 
+        // 2. Operational Data (filtered for non-admins)
+        const [schedulesRes, tasksRes, actionPlansRes, responsesRes, usersRes, apiSettingsRes] =
+          await Promise.all([
+            pb
+              .collection('schedules')
+              .getFullList(isAdmin ? {} : { filter: `assigned_to = "${currentUserId}"` }),
+            pb
+              .collection('tasks')
+              .getFullList(isAdmin ? {} : { filter: `user_id = "${currentUserId}"` }),
+            pb
+              .collection('action_plans')
+              .getFullList(isAdmin ? {} : { filter: `responsible_id = "${currentUserId}"` }),
+            pb.collection('responses').getFullList({
+              expand: 'task_id,user_id',
+              filter: isAdmin ? '' : `user_id = "${currentUserId}"`,
+            }),
+            isAdmin
+              ? pb.collection('users').getFullList()
+              : Promise.resolve(pb.authStore.record ? [pb.authStore.record] : []),
+            isAdmin ? pb.collection('api_settings').getFullList() : Promise.resolve([]),
+          ])
         const mappedAudits: Audit[] = responsesRes.map((r) => {
           const answers = { ...(r.data?.answers || {}) }
           const files = r.files || []

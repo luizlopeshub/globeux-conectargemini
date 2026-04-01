@@ -428,8 +428,8 @@ export default function Executor() {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Atenção</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Deseja realmente reiniciar o formulário? Todos os dados preenchidos e o rascunho
-                    salvo serão perdidos permanentemente.
+                    Deseja realmente reiniciar o formulário? Todos os dados preenchidos e rascunhos
+                    locais serão perdidos.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
