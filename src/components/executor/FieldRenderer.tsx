@@ -5,12 +5,13 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Camera, MapPin, Edit3, Loader2, AlertTriangle } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { Camera, MapPin, Edit3, Loader2, AlertTriangle, Calculator } from 'lucide-react'
+import { useMemo, useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import useAppStore from '@/stores/useAppStore'
 import { SmartLookup } from '@/components/SmartLookup'
 import pb from '@/lib/pocketbase/client'
+import { convertUnit, UNITS } from '@/lib/utils/conversions'
 
 interface Props {
   field: FormField
@@ -41,15 +42,80 @@ export function FieldRenderer({
 
   const options = field.options ? field.options.split(',').map((s) => s.trim()) : []
 
-  const calcValue = useMemo(() => {
-    if (field.type !== 'calculation') return 0
-    const sources = field.calcSourceFields || []
-    if (sources.length === 0) return 0
-    const vals = sources.map((id) => Number(allAnswers[id]) || 0)
-    const sum = vals.reduce((acc, curr) => acc + curr, 0)
-    if (field.calcOperation === 'average') return vals.length ? (sum / vals.length).toFixed(2) : 0
-    return sum
-  }, [field.type, field.calcOperation, field.calcSourceFields, allAnswers])
+  const dependentValues = useMemo(() => {
+    if (field.type !== 'calculation') return ''
+    if (field.formula) {
+      const matches = field.formula.match(/\[([^\]]+)\]/g)
+      if (!matches) return ''
+      return matches
+        .map((m) => {
+          const id = m.slice(1, -1)
+          return `${id}:${allAnswers[id] || 0}`
+        })
+        .join(',')
+    }
+    if (field.calcSourceFields) {
+      return field.calcSourceFields.map((id) => `${id}:${allAnswers[id] || 0}`).join(',')
+    }
+    return ''
+  }, [field.formula, field.calcSourceFields, allAnswers, field.type])
+
+  useEffect(() => {
+    if (field.type !== 'calculation') return
+
+    let calculatedValue = 0
+
+    if (field.formula) {
+      try {
+        let expression = field.formula
+        const matches = expression.match(/\[([^\]]+)\]/g)
+        if (matches) {
+          matches.forEach((match) => {
+            const id = match.slice(1, -1)
+            const val = Number(allAnswers[id]) || 0
+            expression = expression.replace(match, String(val))
+          })
+        }
+
+        // Only allow safe math characters to be evaluated
+        if (/^[0-9+\-*/().\s]+$/.test(expression)) {
+          // eslint-disable-next-line no-new-func
+          calculatedValue = new Function('return ' + expression)()
+        }
+      } catch (e) {
+        console.error('Erro na fórmula de cálculo:', e)
+      }
+    } else if (field.calcSourceFields?.length) {
+      const vals = field.calcSourceFields.map((id) => Number(allAnswers[id]) || 0)
+      const sum = vals.reduce((acc, curr) => acc + curr, 0)
+      calculatedValue = field.calcOperation === 'average' && vals.length ? sum / vals.length : sum
+    }
+
+    if (field.unit_category && field.unit_source && field.unit_target) {
+      calculatedValue = convertUnit(
+        calculatedValue,
+        field.unit_category as any,
+        field.unit_source,
+        field.unit_target,
+      )
+    }
+
+    const finalVal = Number(calculatedValue.toFixed(4))
+
+    if (value !== finalVal && !isNaN(finalVal)) {
+      // Delay to prevent React render loop warnings when multiple calcs exist
+      setTimeout(() => onChange(finalVal), 0)
+    }
+  }, [
+    dependentValues,
+    field.formula,
+    field.calcSourceFields,
+    field.calcOperation,
+    field.unit_category,
+    field.unit_source,
+    field.unit_target,
+    field.type,
+  ])
 
   const handleFileUpload = async (file: File) => {
     setIsUploading(true)
@@ -258,12 +324,31 @@ export function FieldRenderer({
             <span className="text-muted-foreground">Toque para Assinar</span>
           </Button>
         )
-      case 'calculation':
+      case 'calculation': {
+        const targetUnitLabel =
+          field.unit_category && field.unit_target
+            ? UNITS[field.unit_category as keyof typeof UNITS]?.find(
+                (u) => u.id === field.unit_target,
+              )?.label || field.unit_target
+            : ''
+
         return (
-          <div className="bg-slate-100 p-4 rounded-md border font-mono text-lg font-semibold text-primary">
-            = {calcValue}
+          <div className="bg-slate-50 p-4 rounded-md border flex items-center justify-between shadow-inner ring-1 ring-black/5 relative overflow-hidden">
+            <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary/40"></div>
+            <div className="flex items-center gap-3">
+              <Calculator className="h-5 w-5 text-primary/60" />
+              <span className="font-mono text-2xl font-bold text-slate-800">
+                = {Number(value || 0).toLocaleString('pt-BR', { maximumFractionDigits: 4 })}
+              </span>
+            </div>
+            {targetUnitLabel && (
+              <span className="text-sm font-medium text-slate-600 bg-white border px-2.5 py-1 rounded shadow-sm">
+                {targetUnitLabel}
+              </span>
+            )}
           </div>
         )
+      }
       default:
         return null
     }

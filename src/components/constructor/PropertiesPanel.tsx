@@ -15,6 +15,7 @@ import { useState, useEffect } from 'react'
 import pb from '@/lib/pocketbase/client'
 import useAppStore from '@/stores/useAppStore'
 import { Skeleton } from '@/components/ui/skeleton'
+import { UNITS } from '@/lib/utils/conversions'
 
 interface Props {
   activeItem: ActiveItem
@@ -364,6 +365,123 @@ export function PropertiesPanel({
                       </p>
                     </div>
                   </>
+                )}
+              </div>
+            )}
+
+            {activeField.type === 'calculation' && (
+              <div className="space-y-4 border rounded-md p-4 bg-slate-50/50 shadow-sm">
+                <h4 className="font-medium text-sm text-primary">Engenharia de Cálculo</h4>
+
+                <div className="space-y-2">
+                  <Label>Fórmula de Expressão</Label>
+                  <Input
+                    className="bg-white font-mono text-sm"
+                    placeholder="Ex: [field_id_1] * [field_id_2]"
+                    value={activeField.formula || ''}
+                    onChange={(e) => handleUpdateField(activeField.id, { formula: e.target.value })}
+                  />
+                  <div className="text-xs text-muted-foreground">
+                    <p className="mb-1">Variáveis Numéricas Disponíveis (Clique para copiar):</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {fields
+                        .filter(
+                          (f) =>
+                            (f.type === 'number' || f.type === 'calculation') &&
+                            f.id !== activeField.id,
+                        )
+                        .map((f) => (
+                          <span
+                            key={f.id}
+                            className="bg-primary/10 text-primary px-1.5 py-0.5 rounded cursor-pointer hover:bg-primary/20 transition-colors"
+                            title={`Label: ${f.label}`}
+                            onClick={() => {
+                              navigator.clipboard.writeText(`[${f.id}]`)
+                            }}
+                          >
+                            [{f.id}]
+                          </span>
+                        ))}
+                      {fields.filter(
+                        (f) =>
+                          (f.type === 'number' || f.type === 'calculation') &&
+                          f.id !== activeField.id,
+                      ).length === 0 && (
+                        <span className="text-slate-400 italic">
+                          Nenhum campo numérico criado ainda.
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2 pt-2 border-t">
+                  <Label>Categoria de Conversão de Unidade</Label>
+                  <Select
+                    value={activeField.unit_category || 'none'}
+                    onValueChange={(val: any) =>
+                      handleUpdateField(activeField.id, {
+                        unit_category: val === 'none' ? undefined : val,
+                        unit_source: undefined,
+                        unit_target: undefined,
+                      })
+                    }
+                  >
+                    <SelectTrigger className="bg-white">
+                      <SelectValue placeholder="Sem conversão" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sem conversão</SelectItem>
+                      <SelectItem value="mass">Massa / Peso</SelectItem>
+                      <SelectItem value="length">Comprimento / Distância</SelectItem>
+                      <SelectItem value="temp">Temperatura</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {activeField.unit_category && (
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Unidade de Entrada</Label>
+                      <Select
+                        value={activeField.unit_source || ''}
+                        onValueChange={(val) =>
+                          handleUpdateField(activeField.id, { unit_source: val })
+                        }
+                      >
+                        <SelectTrigger className="bg-white h-9 text-xs">
+                          <SelectValue placeholder="Origem" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {UNITS[activeField.unit_category as keyof typeof UNITS]?.map((u) => (
+                            <SelectItem key={u.id} value={u.id}>
+                              {u.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Unidade de Saída (Exibição)</Label>
+                      <Select
+                        value={activeField.unit_target || ''}
+                        onValueChange={(val) =>
+                          handleUpdateField(activeField.id, { unit_target: val })
+                        }
+                      >
+                        <SelectTrigger className="bg-white h-9 text-xs">
+                          <SelectValue placeholder="Destino" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {UNITS[activeField.unit_category as keyof typeof UNITS]?.map((u) => (
+                            <SelectItem key={u.id} value={u.id}>
+                              {u.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                 )}
               </div>
             )}

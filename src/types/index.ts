@@ -66,6 +66,10 @@ export interface FormField {
   hardValidationMax?: number
   hardValidationMessage?: string
   lookupSource?: string
+  formula?: string
+  unit_category?: 'mass' | 'length' | 'temp'
+  unit_source?: string
+  unit_target?: string
   triggers?: Array<'require_photo' | 'create_action_plan' | 'send_notification'>
   dataSourceType?: 'internal' | 'external_api' | 'master_data'
   apiUrl?: string
