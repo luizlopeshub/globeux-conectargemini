@@ -81,6 +81,112 @@ export default function Constructor() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
 
+  // Drag & Drop State
+  const [draggedItem, setDraggedItem] = useState<{ id: string; type: 'block' | 'field' } | null>(
+    null,
+  )
+  const [dragOverItem, setDragOverItem] = useState<{
+    id: string
+    type: 'block' | 'field' | 'block_content'
+  } | null>(null)
+
+  const handleReorderBlocks = (sourceId: string, targetId: string) => {
+    if (sourceId === targetId) return
+    const sourceIndex = blocks.findIndex((b) => b.id === sourceId)
+    const targetIndex = blocks.findIndex((b) => b.id === targetId)
+    if (sourceIndex === -1 || targetIndex === -1) return
+    const newBlocks = [...blocks]
+    const [moved] = newBlocks.splice(sourceIndex, 1)
+    newBlocks.splice(targetIndex, 0, moved)
+    setBlocks(newBlocks)
+  }
+
+  const handleReorderFields = (
+    sourceId: string,
+    targetId: string,
+    targetType: 'field' | 'block_content',
+  ) => {
+    if (sourceId === targetId && targetType === 'field') return
+    const sourceIndex = fields.findIndex((f) => f.id === sourceId)
+    if (sourceIndex === -1) return
+
+    let newBlockId = fields[sourceIndex].blockId
+    if (targetType === 'field') {
+      const targetField = fields.find((f) => f.id === targetId)
+      if (targetField) newBlockId = targetField.blockId
+    } else {
+      newBlockId = targetId
+    }
+
+    const newFields = [...fields]
+    const [moved] = newFields.splice(sourceIndex, 1)
+    moved.blockId = newBlockId
+
+    if (targetType === 'field') {
+      const insertIndex = newFields.findIndex((f) => f.id === targetId)
+      if (insertIndex !== -1) {
+        newFields.splice(insertIndex, 0, moved)
+      } else {
+        newFields.push(moved)
+      }
+    } else {
+      newFields.push(moved)
+    }
+
+    setFields(newFields)
+  }
+
+  const handleDragStart = (e: React.DragEvent, id: string, type: 'block' | 'field') => {
+    e.stopPropagation()
+    e.dataTransfer.setData('text/plain', `${type}:${id}`)
+    e.dataTransfer.effectAllowed = 'move'
+    setDraggedItem({ id, type })
+  }
+
+  const handleDragOver = (
+    e: React.DragEvent,
+    id: string,
+    type: 'block' | 'field' | 'block_content',
+  ) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!draggedItem) return
+    if (draggedItem.type === 'block' && type !== 'block') return
+    if (draggedItem.type === 'field' && type === 'block') return
+    if (draggedItem.id === id && type !== 'block_content') return
+
+    setDragOverItem((prev) => {
+      if (prev?.id === id && prev?.type === type) return prev
+      return { id, type }
+    })
+  }
+
+  const handleDrop = (
+    e: React.DragEvent,
+    targetId: string,
+    type: 'block' | 'field' | 'block_content',
+  ) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragOverItem(null)
+    setDraggedItem(null)
+
+    const data = e.dataTransfer.getData('text/plain')
+    if (!data) return
+
+    const [sourceType, sourceId] = data.split(':')
+    if (sourceType === 'block' && type === 'block') {
+      handleReorderBlocks(sourceId, targetId)
+    } else if (sourceType === 'field' && (type === 'field' || type === 'block_content')) {
+      handleReorderFields(sourceId, targetId, type)
+    }
+  }
+
+  const handleDragEnd = () => {
+    setDraggedItem(null)
+    setDragOverItem(null)
+  }
+
   useEffect(() => {
     getSubjects().then(setSubjectsList).catch(console.error)
   }, [])
@@ -484,10 +590,19 @@ export default function Constructor() {
                 {blocks.map((b, bIdx) => (
                   <div
                     key={b.id}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, b.id, 'block')}
+                    onDragOver={(e) => handleDragOver(e, b.id, 'block')}
+                    onDrop={(e) => handleDrop(e, b.id, 'block')}
+                    onDragEnd={handleDragEnd}
                     className={`bg-card rounded-xl border transition-all duration-200 animate-in fade-in slide-in-from-bottom-2 ${
                       activeItem?.id === b.id && activeItem.type === 'block'
                         ? 'border-primary ring-1 ring-primary shadow-md'
                         : 'border-border shadow-sm hover:border-primary/30'
+                    } ${draggedItem?.id === b.id ? 'opacity-40 scale-[0.98]' : ''} ${
+                      dragOverItem?.id === b.id && dragOverItem?.type === 'block'
+                        ? 'border-t-4 border-t-primary border-b-0'
+                        : ''
                     }`}
                   >
                     <div
@@ -534,16 +649,33 @@ export default function Constructor() {
                         </Button>
                       </div>
                     </div>
-                    <div className="p-4 space-y-3 min-h-[100px] bg-background/50 rounded-b-xl">
+                    <div
+                      className={`p-4 space-y-3 min-h-[100px] bg-background/50 rounded-b-xl transition-colors ${
+                        dragOverItem?.id === b.id && dragOverItem?.type === 'block_content'
+                          ? 'bg-primary/5 ring-2 ring-primary ring-inset'
+                          : ''
+                      }`}
+                      onDragOver={(e) => handleDragOver(e, b.id, 'block_content')}
+                      onDrop={(e) => handleDrop(e, b.id, 'block_content')}
+                    >
                       {fields
                         .filter((f) => f.blockId === b.id)
                         .map((f, fIdx, arr) => (
                           <Card
                             key={f.id}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, f.id, 'field')}
+                            onDragOver={(e) => handleDragOver(e, f.id, 'field')}
+                            onDrop={(e) => handleDrop(e, f.id, 'field')}
+                            onDragEnd={handleDragEnd}
                             className={`p-0 cursor-pointer group transition-all overflow-hidden ${
                               activeItem?.id === f.id && activeItem.type === 'field'
                                 ? 'ring-2 ring-primary border-transparent shadow-sm'
                                 : 'hover:border-primary/40 border-border shadow-sm'
+                            } ${draggedItem?.id === f.id ? 'opacity-40 scale-[0.98]' : ''} ${
+                              dragOverItem?.id === f.id && dragOverItem?.type === 'field'
+                                ? 'border-t-4 border-t-primary'
+                                : ''
                             }`}
                             onClick={(e) => {
                               e.stopPropagation()
@@ -762,6 +894,8 @@ export default function Constructor() {
                 settings={pdfSettings}
                 blocks={blocks}
                 fields={fields}
+                onReorderBlocks={handleReorderBlocks}
+                onReorderFields={handleReorderFields}
               />
             </div>
           </TabsContent>
