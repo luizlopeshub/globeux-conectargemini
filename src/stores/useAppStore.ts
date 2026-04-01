@@ -76,6 +76,8 @@ const performLogout = () => {
     actionPlans: [],
     subjects: [],
     departments: [],
+    entityDefs: [],
+    entityRecords: [],
   })
 }
 
@@ -157,7 +159,19 @@ export default function useAppStore() {
         const isAdmin = currentUserRole === 'admin'
         const currentUserId = pb.authStore.record?.id
 
-        const queries: Promise<any>[] = [
+        const [
+          templatesRes,
+          schedulesRes,
+          tasksRes,
+          actionPlansRes,
+          responsesRes,
+          subjectsRes,
+          departmentsRes,
+          entityDefsRes,
+          masterDataRes,
+          usersRes,
+          apiSettingsRes,
+        ] = await Promise.all([
           pb.collection('templates').getFullList(),
           pb
             .collection('schedules')
@@ -174,27 +188,13 @@ export default function useAppStore() {
           }),
           pb.collection('subjects').getFullList(),
           pb.collection('departments').getFullList(),
-        ]
-
-        if (isAdmin) {
-          queries.push(pb.collection('users').getFullList())
-          queries.push(pb.collection('api_settings').getFullList())
-        } else {
-          queries.push(Promise.resolve(pb.authStore.record ? [pb.authStore.record] : []))
-          queries.push(Promise.resolve([]))
-        }
-
-        const [
-          templatesRes,
-          schedulesRes,
-          tasksRes,
-          actionPlansRes,
-          responsesRes,
-          subjectsRes,
-          departmentsRes,
-          usersRes,
-          apiSettingsRes,
-        ] = await Promise.all(queries)
+          pb.collection('entity_definitions').getFullList(),
+          pb.collection('master_data_entries').getFullList(),
+          isAdmin
+            ? pb.collection('users').getFullList()
+            : Promise.resolve(pb.authStore.record ? [pb.authStore.record] : []),
+          isAdmin ? pb.collection('api_settings').getFullList() : Promise.resolve([]),
+        ])
 
         const mappedAudits: Audit[] = responsesRes.map((r) => {
           const answers = { ...(r.data?.answers || {}) }
@@ -238,6 +238,8 @@ export default function useAppStore() {
           audits: mappedAudits,
           subjects: subjectsRes as any,
           departments: departmentsRes as any,
+          entityDefs: entityDefsRes as any,
+          entityRecords: masterDataRes as any,
           apiSettings: (apiSettingsRes[0] as any) || null,
           currentUser: (pb.authStore.record as any) || null,
         })
