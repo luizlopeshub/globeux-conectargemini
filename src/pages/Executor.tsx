@@ -3,13 +3,9 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import useAppStore from '@/stores/useAppStore'
 import { FieldRenderer } from '@/components/executor/FieldRenderer'
 import { Button } from '@/components/ui/button'
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion'
-import { Card } from '@/components/ui/card'
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Separator } from '@/components/ui/separator'
 import { Progress } from '@/components/ui/progress'
 import { toast } from '@/hooks/use-toast'
 import { generateId } from '@/lib/utils'
@@ -199,8 +195,31 @@ export default function Executor() {
   const hasHardErrors =
     Object.keys(hardValidationErrors).length > 0 || evaluatedRules.blocks.length > 0
 
+  const hasMissingRequiredAll = useMemo(() => {
+    return templateFields.some((f) => {
+      const blockIsVisible = visibleBlocks.some((b) => b.id === f.blockId)
+      if (!blockIsVisible) return false
+
+      if (f.logicDependsOn && answers[f.logicDependsOn] !== f.logicValue) return false
+      if (evaluatedRules.hidden.has(f.id)) return false
+      if (evaluatedRules.shownTargets.has(f.id) && !evaluatedRules.shownActive.has(f.id))
+        return false
+
+      const isRequired = f.required || evaluatedRules.required.has(f.id)
+      const val = answers[f.id]
+      const isEmpty =
+        val === undefined || val === null || val === '' || (Array.isArray(val) && val.length === 0)
+      return isRequired && isEmpty
+    })
+  }, [templateFields, visibleBlocks, answers, evaluatedRules])
+
   if (!template) return <div className="p-8 text-center">Template não encontrado.</div>
   if (!currentUser) return <div className="p-8 text-center">Usuário não autenticado.</div>
+
+  const isSummaryStep = currentStep === visibleBlocks.length
+  const isLastQuestionBlock = currentStep === visibleBlocks.length - 1
+  const totalSteps = visibleBlocks.length + 1
+  const progressPercent = totalSteps ? ((currentStep + 1) / totalSteps) * 100 : 0
 
   const currentBlock = visibleBlocks[currentStep]
   const currentFields = templateFields.filter((f) => f.blockId === currentBlock?.id)
@@ -222,10 +241,6 @@ export default function Executor() {
       return isRequired && isEmpty
     })
   }, [hasHardErrors, visibleCurrentFields, evaluatedRules.required, answers])
-
-  const totalSteps = visibleBlocks.length + 1
-  const isSummaryStep = currentStep === visibleBlocks.length
-  const progressPercent = totalSteps ? ((currentStep + 1) / totalSteps) * 100 : 0
 
   const handleNext = () => {
     if (isNextDisabled) return
@@ -260,23 +275,7 @@ export default function Executor() {
       })
     }
 
-    const missing = templateFields.find((f) => {
-      const blockIsVisible = visibleBlocks.some((b) => b.id === f.blockId)
-      if (!blockIsVisible) return false
-
-      if (f.logicDependsOn && answers[f.logicDependsOn] !== f.logicValue) return false
-      if (evaluatedRules.hidden.has(f.id)) return false
-      if (evaluatedRules.shownTargets.has(f.id) && !evaluatedRules.shownActive.has(f.id))
-        return false
-
-      const isRequired = f.required || evaluatedRules.required.has(f.id)
-      const val = answers[f.id]
-      const isEmpty =
-        val === undefined || val === null || val === '' || (Array.isArray(val) && val.length === 0)
-      return isRequired && isEmpty
-    })
-
-    if (missing) {
+    if (hasMissingRequiredAll) {
       return toast({
         title: 'Campos obrigatórios',
         description: `Existem campos obrigatórios não preenchidos em passos anteriores.`,
@@ -388,35 +387,32 @@ export default function Executor() {
             Revise as informações preenchidas antes de finalizar.
           </p>
 
-          <Accordion
-            type="multiple"
-            className="w-full"
-            defaultValue={visibleBlocks.map((b) => b.id)}
-          >
-            {visibleBlocks.map((block) => {
-              const blockFields = templateFields.filter((f) => f.blockId === block.id)
-              const visibleFields = blockFields.filter((f) => {
-                if (f.logicDependsOn && answers[f.logicDependsOn] !== f.logicValue) return false
-                if (evaluatedRules.hidden.has(f.id)) return false
-                if (evaluatedRules.shownTargets.has(f.id) && !evaluatedRules.shownActive.has(f.id))
-                  return false
-                return true
-              })
+          <ScrollArea className="h-[calc(100vh-320px)] min-h-[400px] w-full rounded-md pr-4">
+            <div className="space-y-6 pb-6">
+              {visibleBlocks.map((block) => {
+                const blockFields = templateFields.filter((f) => f.blockId === block.id)
+                const visibleFields = blockFields.filter((f) => {
+                  if (f.logicDependsOn && answers[f.logicDependsOn] !== f.logicValue) return false
+                  if (evaluatedRules.hidden.has(f.id)) return false
+                  if (
+                    evaluatedRules.shownTargets.has(f.id) &&
+                    !evaluatedRules.shownActive.has(f.id)
+                  )
+                    return false
+                  return true
+                })
 
-              if (visibleFields.length === 0) return null
+                if (visibleFields.length === 0) return null
 
-              return (
-                <AccordionItem
-                  key={block.id}
-                  value={block.id}
-                  className="bg-card rounded-md border px-4 mb-4 shadow-sm"
-                >
-                  <AccordionTrigger className="font-semibold hover:no-underline">
-                    {block.name}
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="space-y-3 pt-2">
-                      {visibleFields.map((f) => {
+                return (
+                  <Card key={block.id} className="overflow-hidden border-border shadow-sm">
+                    <CardHeader className="bg-muted/30 border-b py-3 px-4 sm:px-6">
+                      <CardTitle className="text-base sm:text-lg font-semibold">
+                        {block.name}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      {visibleFields.map((f, fIdx) => {
                         const val = answers[f.id]
                         const isEmpty =
                           val === undefined ||
@@ -433,7 +429,7 @@ export default function Executor() {
                             displayVal = (
                               <img
                                 src={val instanceof File ? URL.createObjectURL(val) : val}
-                                className="h-16 rounded border object-cover"
+                                className="h-20 rounded border object-cover shadow-sm"
                                 alt="Anexo"
                               />
                             )
@@ -448,38 +444,50 @@ export default function Executor() {
 
                         const err = hardValidationErrors[f.id]
                         const isDynamicRequired = f.required || evaluatedRules.required.has(f.id)
+                        const isMissingError = isEmpty && isDynamicRequired
 
                         return (
-                          <div
-                            key={f.id}
-                            className={`grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-4 border-b last:border-0 pb-3 last:pb-0 ${err ? 'bg-destructive/5 -mx-4 px-4 pt-2' : ''}`}
-                          >
-                            <span className="text-sm font-medium text-muted-foreground sm:col-span-1">
-                              {f.label}
-                              {isDynamicRequired && (
-                                <span className="text-destructive ml-1">*</span>
-                              )}
-                            </span>
-                            <div className="sm:col-span-2 flex flex-col">
-                              <span className="text-sm font-semibold text-foreground flex items-center break-all">
-                                {displayVal}
-                              </span>
-                              {err && <span className="text-xs text-destructive mt-1">{err}</span>}
-                              {isEmpty && !isDynamicRequired && (
-                                <span className="text-xs text-muted-foreground mt-1">
-                                  Campo opcional sem resposta
+                          <div key={f.id}>
+                            <div
+                              className={`p-4 sm:px-6 ${err || isMissingError ? 'bg-destructive/5' : ''}`}
+                            >
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
+                                <span className="text-sm font-medium text-muted-foreground sm:col-span-1">
+                                  {f.label}
+                                  {isDynamicRequired && (
+                                    <span className="text-destructive ml-1">*</span>
+                                  )}
                                 </span>
-                              )}
+                                <div className="sm:col-span-2 flex flex-col">
+                                  <span className="text-sm font-semibold text-foreground flex items-center break-all">
+                                    {displayVal}
+                                  </span>
+                                  {err && (
+                                    <span className="text-xs text-destructive mt-1">{err}</span>
+                                  )}
+                                  {isMissingError && (
+                                    <span className="text-xs text-destructive mt-1">
+                                      Este campo é obrigatório e precisa ser preenchido.
+                                    </span>
+                                  )}
+                                  {isEmpty && !isDynamicRequired && (
+                                    <span className="text-xs text-muted-foreground mt-1">
+                                      Campo opcional sem resposta
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
                             </div>
+                            {fIdx < visibleFields.length - 1 && <Separator />}
                           </div>
                         )
                       })}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              )
-            })}
-          </Accordion>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          </ScrollArea>
         </div>
       ) : (
         currentBlock && (
@@ -583,10 +591,12 @@ export default function Executor() {
             {savingStatus}
           </div>
 
-          {isLastStep ? (
+          {isSummaryStep ? (
             <Button
               onClick={handleSubmit}
-              disabled={hasHardErrors || uploadingCount > 0 || isSubmitting}
+              disabled={
+                hasHardErrors || hasMissingRequiredAll || uploadingCount > 0 || isSubmitting
+              }
               className="w-48 h-12 bg-[#f59e0b] hover:bg-[#d97706] text-white disabled:bg-muted disabled:text-muted-foreground transition-all"
             >
               {isSubmitting ? (
@@ -607,11 +617,15 @@ export default function Executor() {
             <Button
               onClick={handleNext}
               disabled={isNextDisabled || uploadingCount > 0 || isSubmitting}
-              className="w-32 h-12 transition-all"
+              className="w-auto px-6 min-w-[128px] h-12 transition-all"
             >
               {uploadingCount > 0 ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Upload...
+                </>
+              ) : isLastQuestionBlock ? (
+                <>
+                  Revisar Respostas <ArrowRight className="h-4 w-4 ml-2" />
                 </>
               ) : (
                 <>
