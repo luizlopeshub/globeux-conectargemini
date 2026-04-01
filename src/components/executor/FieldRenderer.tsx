@@ -49,7 +49,7 @@ export function FieldRenderer({
       if (!matches) return ''
       return matches
         .map((m) => {
-          const id = m.slice(1, -1)
+          const id = m.slice(1, -1).trim()
           return `${id}:${allAnswers[id] || 0}`
         })
         .join(',')
@@ -71,14 +71,15 @@ export function FieldRenderer({
         const matches = expression.match(/\[([^\]]+)\]/g)
         if (matches) {
           matches.forEach((match) => {
-            const id = match.slice(1, -1)
+            const id = match.slice(1, -1).trim()
             const val = Number(allAnswers[id]) || 0
-            expression = expression.replace(match, String(val))
+            expression = expression.replace(match, `(${val})`)
           })
         }
 
         // Only allow safe math characters to be evaluated
-        if (/^[0-9+\-*/().\s]+$/.test(expression)) {
+        const safeExpression = expression.replace(/[eE]/g, '')
+        if (/^[0-9+\-*/().\s]+$/.test(safeExpression)) {
           // eslint-disable-next-line no-new-func
           calculatedValue = new Function('return ' + expression)()
         }
@@ -332,17 +333,21 @@ export function FieldRenderer({
               )?.label || field.unit_target
             : ''
 
+        const formattedValue = Number(value || 0).toLocaleString('pt-BR', {
+          maximumFractionDigits: 4,
+        })
+
         return (
-          <div className="bg-slate-50 p-4 rounded-md border flex items-center justify-between shadow-inner ring-1 ring-black/5 relative overflow-hidden">
-            <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary/40"></div>
-            <div className="flex items-center gap-3">
-              <Calculator className="h-5 w-5 text-primary/60" />
-              <span className="font-mono text-2xl font-bold text-slate-800">
-                = {Number(value || 0).toLocaleString('pt-BR', { maximumFractionDigits: 4 })}
-              </span>
-            </div>
+          <div className="relative flex items-center">
+            <Calculator className="absolute left-3 h-5 w-5 text-primary/60 z-10" />
+            <Input
+              type="text"
+              readOnly
+              value={`= ${formattedValue}`}
+              className="h-12 pl-10 pr-16 bg-slate-50/50 font-mono text-lg font-bold text-slate-800 focus-visible:ring-0 border-primary/20 cursor-not-allowed shadow-inner"
+            />
             {targetUnitLabel && (
-              <span className="text-sm font-medium text-slate-600 bg-white border px-2.5 py-1 rounded shadow-sm">
+              <span className="absolute right-3 text-xs font-medium text-slate-500 bg-white border px-2 py-0.5 rounded shadow-sm z-10">
                 {targetUnitLabel}
               </span>
             )}
