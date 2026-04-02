@@ -1,4 +1,4 @@
-import { FormField } from '@/types'
+import { FormField, LogicCondition } from '@/types'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
@@ -22,6 +22,103 @@ interface Props {
   dynamicRequired?: boolean
   onUploadStart?: () => void
   onUploadEnd?: () => void
+  allFields?: FormField[]
+}
+
+export function calculateFieldVisibility(
+  field: FormField,
+  allResponses: Record<string, any>,
+  allFields: FormField[] = [],
+): boolean {
+  if (field.alwaysVisible === true) return true
+
+  const hasLegacyDependsOn = field.logicDependsOn && field.logicDependsOn !== 'none'
+  const hasRelatedField = !!field.relatedFieldId
+
+  let hasAdvancedRule = false
+  let advancedVisible = false
+
+  const evaluateCondition = (actual: any, condition: LogicCondition, expected: any) => {
+    const a = String(actual || '').toLowerCase()
+    const e = String(expected || '').toLowerCase()
+    const numA = Number(actual)
+    const numE = Number(expected)
+
+    switch (condition) {
+      case 'equals':
+        return a === e
+      case 'not_equals':
+        return a !== e
+      case 'greater_than':
+        return !isNaN(numA) && !isNaN(numE) ? numA > numE : a > e
+      case 'less_than':
+        return !isNaN(numA) && !isNaN(numE) ? numA < numE : a < e
+      default:
+        return false
+    }
+  }
+
+  // Evaluate rules defined on THIS field (target-based: SET_VISIBLE / SET_HIDDEN)
+  if (field.logicRules?.length) {
+    for (const rule of field.logicRules) {
+      if (rule.action === 'SET_VISIBLE' || rule.action === 'SET_HIDDEN') {
+        hasAdvancedRule = true
+        const sourceVal = allResponses[rule.sourceFieldId]
+        if (evaluateCondition(sourceVal, rule.condition, rule.value)) {
+          return rule.action === 'SET_VISIBLE'
+        }
+      }
+    }
+  }
+
+  // Evaluate rules defined on OTHER fields targeting this field (source-based: SHOW_FIELD / HIDE_FIELD)
+  if (!hasAdvancedRule && allFields.length > 0) {
+    for (const otherField of allFields) {
+      if (otherField.logicRules?.length) {
+        for (const rule of otherField.logicRules) {
+          if (
+            (rule.action === 'SHOW_FIELD' || rule.action === 'HIDE_FIELD') &&
+            rule.targetId === field.id
+          ) {
+            hasAdvancedRule = true
+            const sourceVal = allResponses[otherField.id]
+            if (evaluateCondition(sourceVal, rule.condition, rule.value)) {
+              return rule.action === 'SHOW_FIELD'
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // If a rule targeted this field but no condition was met, default to the opposite of its primary intent
+  if (hasAdvancedRule) {
+    let hasShowIntent = field.logicRules?.some((r) => r.action === 'SET_VISIBLE') || false
+    if (!hasShowIntent && allFields.length > 0) {
+      hasShowIntent = allFields.some((f) =>
+        f.logicRules?.some((r) => r.action === 'SHOW_FIELD' && r.targetId === field.id),
+      )
+    }
+    return !hasShowIntent
+  }
+
+  // Basic fallbacks
+  if (hasRelatedField) {
+    return (
+      String(allResponses[field.relatedFieldId!] || '').toLowerCase() ===
+      String(field.expectedValue || '').toLowerCase()
+    )
+  }
+
+  if (hasLegacyDependsOn) {
+    return (
+      String(allResponses[field.logicDependsOn!] || '').toLowerCase() ===
+      String(field.logicValue || '').toLowerCase()
+    )
+  }
+
+  if (field.alwaysVisible === false) return false
+  return true
 }
 
 export function FieldRenderer({
@@ -34,6 +131,7 @@ export function FieldRenderer({
   dynamicRequired,
   onUploadStart,
   onUploadEnd,
+  allFields = [],
 }: Props) {
   const [isUploading, setIsUploading] = useState(false)
   const location = useLocation()
@@ -379,6 +477,13 @@ export function FieldRenderer({
         return null
     }
   }
+
+  const isVisible = useMemo(
+    () => calculateFieldVisibility(field, allAnswers, allFields),
+    [field, allAnswers, allFields],
+  )
+
+  if (!isVisible) return null
 
   return (
     <Card

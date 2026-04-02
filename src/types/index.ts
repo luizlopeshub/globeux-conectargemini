@@ -57,6 +57,9 @@ export interface FormField {
   label: string
   options?: string
   required?: boolean
+  alwaysVisible?: boolean
+  relatedFieldId?: string
+  expectedValue?: string
   logicDependsOn?: string
   logicValue?: string
   repeatsBasedOn?: string
@@ -158,6 +161,8 @@ export type LogicCondition = 'equals' | 'not_equals' | 'greater_than' | 'less_th
 export type LogicAction =
   | 'SHOW_FIELD'
   | 'HIDE_FIELD'
+  | 'SET_VISIBLE'
+  | 'SET_HIDDEN'
   | 'SET_REQUIRED'
   | 'DISPLAY_ALERT'
   | 'BLOCK_SUBMIT'

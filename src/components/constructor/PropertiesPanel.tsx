@@ -561,39 +561,60 @@ export function PropertiesPanel({
 
             <div className="pt-4 border-t space-y-4">
               <h4 className="font-medium text-sm text-primary">Lógica de Visibilidade do Campo</h4>
-              <div className="space-y-2">
-                <Select
-                  value={activeField.logicDependsOn || 'none'}
-                  onValueChange={(val) =>
-                    handleUpdateField(activeField.id, {
-                      logicDependsOn: val === 'none' ? undefined : val,
-                    })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Sempre visível</SelectItem>
-                    {fields
-                      .filter((f) => f.id !== activeField.id)
-                      .map((f) => (
-                        <SelectItem key={f.id} value={f.id}>
-                          {f.label}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+              <div className="flex items-center justify-between">
+                <Label>Sempre Visível</Label>
+                <Switch
+                  checked={activeField.alwaysVisible !== false}
+                  onCheckedChange={(c) => handleUpdateField(activeField.id, { alwaysVisible: c })}
+                />
               </div>
-              {activeField.logicDependsOn && (
-                <div className="space-y-2">
-                  <Label>Valor Esperado</Label>
-                  <Input
-                    value={activeField.logicValue || ''}
-                    onChange={(e) =>
-                      handleUpdateField(activeField.id, { logicValue: e.target.value })
-                    }
-                  />
+
+              {activeField.alwaysVisible === false && (
+                <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                  <div className="space-y-2">
+                    <Label>Campo Relacionado</Label>
+                    <Select
+                      value={activeField.relatedFieldId || activeField.logicDependsOn || 'none'}
+                      onValueChange={(val) =>
+                        handleUpdateField(activeField.id, {
+                          relatedFieldId: val === 'none' ? undefined : val,
+                          logicDependsOn: val === 'none' ? undefined : val,
+                        })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Nenhum</SelectItem>
+                        {fields
+                          .filter((f) => f.id !== activeField.id)
+                          .map((f) => (
+                            <SelectItem key={f.id} value={f.id}>
+                              {f.label || 'Sem label'}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {(activeField.relatedFieldId || activeField.logicDependsOn) && (
+                    <div className="space-y-2">
+                      <Label>Valor Esperado (Igual a)</Label>
+                      <Input
+                        value={activeField.expectedValue || activeField.logicValue || ''}
+                        onChange={(e) =>
+                          handleUpdateField(activeField.id, {
+                            expectedValue: e.target.value,
+                            logicValue: e.target.value,
+                          })
+                        }
+                        placeholder="Ex: Sim"
+                      />
+                    </div>
+                  )}
+                  <div className="p-3 bg-blue-50 text-blue-800 rounded-md text-xs font-medium flex items-start gap-2">
+                    Esta configuração básica será integrada aos Gatilhos de Lógica.
+                  </div>
                 </div>
               )}
             </div>
@@ -641,6 +662,11 @@ export function PropertiesPanel({
                   handleUpdateField(activeField.id, { logicRules: newRules })
                 }
 
+                const isTargetBased = ['SET_VISIBLE', 'SET_HIDDEN'].includes(rule.action)
+                const isSourceBased = ['SHOW_FIELD', 'HIDE_FIELD', 'SET_REQUIRED'].includes(
+                  rule.action,
+                )
+
                 return (
                   <div
                     key={rule.id}
@@ -662,7 +688,7 @@ export function PropertiesPanel({
                     <div className="grid grid-cols-2 gap-3 pr-8">
                       <div className="space-y-1.5">
                         <Label className="text-xs font-semibold text-slate-500">
-                          Se a resposta for
+                          {isTargetBased ? 'Se a resposta da origem for' : 'Se a resposta for'}
                         </Label>
                         <Select
                           value={rule.condition}
@@ -696,9 +722,17 @@ export function PropertiesPanel({
                       </Label>
                       <Select
                         value={rule.action}
-                        onValueChange={(v) =>
-                          updateRule({ action: v, targetId: '', message: '', responsibleId: '' })
-                        }
+                        onValueChange={(v) => {
+                          const updates: any = { action: v, message: '', responsibleId: '' }
+                          if (['SET_VISIBLE', 'SET_HIDDEN'].includes(v)) {
+                            updates.targetId = activeField.id
+                            updates.sourceFieldId = ''
+                          } else {
+                            updates.sourceFieldId = activeField.id
+                            updates.targetId = ''
+                          }
+                          updateRule(updates)
+                        }}
                       >
                         <SelectTrigger className="h-8 bg-white text-xs shadow-sm">
                           <SelectValue />
@@ -706,6 +740,8 @@ export function PropertiesPanel({
                         <SelectContent>
                           <SelectItem value="SHOW_FIELD">Mostrar outro campo</SelectItem>
                           <SelectItem value="HIDE_FIELD">Ocultar outro campo</SelectItem>
+                          <SelectItem value="SET_VISIBLE">Tornar este campo visível</SelectItem>
+                          <SelectItem value="SET_HIDDEN">Ocultar este campo</SelectItem>
                           <SelectItem value="SET_REQUIRED">Tornar campo obrigatório</SelectItem>
                           <SelectItem value="DISPLAY_ALERT">Exibir Alerta Visual</SelectItem>
                           <SelectItem value="BLOCK_SUBMIT">Bloquear Submissão</SelectItem>
@@ -717,12 +753,35 @@ export function PropertiesPanel({
                       </Select>
                     </div>
 
-                    {['SHOW_FIELD', 'HIDE_FIELD', 'SET_REQUIRED'].includes(rule.action) && (
+                    {isSourceBased && (
                       <div className="space-y-1.5">
                         <Label className="text-xs font-semibold text-slate-500">Campo Alvo</Label>
                         <Select
                           value={rule.targetId || ''}
                           onValueChange={(v) => updateRule({ targetId: v })}
+                        >
+                          <SelectTrigger className="h-8 bg-white text-xs shadow-sm">
+                            <SelectValue placeholder="Selecione o campo..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {fields
+                              .filter((f) => f.id !== activeField.id)
+                              .map((f) => (
+                                <SelectItem key={f.id} value={f.id}>
+                                  {f.label || 'Sem label'}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
+                    {isTargetBased && (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold text-slate-500">Campo Origem</Label>
+                        <Select
+                          value={rule.sourceFieldId || ''}
+                          onValueChange={(v) => updateRule({ sourceFieldId: v })}
                         >
                           <SelectTrigger className="h-8 bg-white text-xs shadow-sm">
                             <SelectValue placeholder="Selecione o campo..." />
