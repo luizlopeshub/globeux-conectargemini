@@ -165,6 +165,12 @@ export type LogicCondition =
   | 'less_than'
   | 'greater_than_or_equal'
   | 'less_than_or_equal'
+  | 'eq'
+  | 'neq'
+  | 'gt'
+  | 'lt'
+  | 'gte'
+  | 'lte'
 export type LogicAction =
   | 'SHOW_FIELD'
   | 'HIDE_FIELD'

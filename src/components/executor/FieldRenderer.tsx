@@ -32,51 +32,110 @@ export function calculateFieldVisibility(
 ): boolean {
   if (field.alwaysVisible === true) return true
 
-  const hasLegacyDependsOn = field.logicDependsOn && field.logicDependsOn !== 'none'
-  const hasRelatedField = !!field.relatedFieldId
-
-  let hasAdvancedRule = false
-  let advancedVisible = false
-
   const evaluateCondition = (actual: any, condition: LogicCondition, expected: any) => {
-    const a = String(actual || '').toLowerCase()
-    const e = String(expected || '').toLowerCase()
+    const aStr = String(actual || '').toLowerCase()
+    const eStr = String(expected || '').toLowerCase()
+
+    const isNumA =
+      actual !== null && actual !== undefined && actual !== '' && !isNaN(Number(actual))
+    const isNumE =
+      expected !== null && expected !== undefined && expected !== '' && !isNaN(Number(expected))
     const numA = Number(actual)
     const numE = Number(expected)
 
     switch (condition) {
       case 'equals':
-        return a === e
+      case 'eq':
+        return aStr === eStr
       case 'not_equals':
-        return a !== e
+      case 'neq':
+        return aStr !== eStr
       case 'greater_than':
-        return !isNaN(numA) && !isNaN(numE) ? numA > numE : a > e
+      case 'gt':
+        return isNumA && isNumE ? numA > numE : aStr > eStr
       case 'less_than':
-        return !isNaN(numA) && !isNaN(numE) ? numA < numE : a < e
+      case 'lt':
+        return isNumA && isNumE ? numA < numE : aStr < eStr
       case 'greater_than_or_equal':
-        return !isNaN(numA) && !isNaN(numE) ? numA >= numE : a >= e
+      case 'gte':
+        return isNumA && isNumE ? numA >= numE : aStr >= eStr
       case 'less_than_or_equal':
-        return !isNaN(numA) && !isNaN(numE) ? numA <= numE : a <= e
+      case 'lte':
+        return isNumA && isNumE ? numA <= numE : aStr <= eStr
       default:
         return false
     }
   }
 
-  // Evaluate rules defined on THIS field (target-based: SET_VISIBLE / SET_HIDDEN)
+  const rules: Array<{
+    action: string
+    condition: LogicCondition
+    value: any
+    sourceFieldId: string
+  }> = []
+
+  if (field.relatedFieldId) {
+    const expectedValues = Array.isArray(field.expectedValue)
+      ? field.expectedValue
+      : [field.expectedValue || '']
+
+    if (
+      (field.logicOperator === 'equals' || field.logicOperator === 'eq' || !field.logicOperator) &&
+      expectedValues.length > 1
+    ) {
+      rules.push({
+        action: 'SET_VISIBLE',
+        condition: 'eq',
+        value: expectedValues,
+        sourceFieldId: field.relatedFieldId,
+      })
+    } else {
+      rules.push({
+        action: 'SET_VISIBLE',
+        condition: (field.logicOperator as LogicCondition) || 'eq',
+        value: expectedValues[0],
+        sourceFieldId: field.relatedFieldId,
+      })
+    }
+  } else if (field.logicDependsOn && field.logicDependsOn !== 'none') {
+    const expectedValues = Array.isArray(field.logicValue)
+      ? field.logicValue
+      : [field.logicValue || '']
+
+    if (
+      (field.logicOperator === 'equals' || field.logicOperator === 'eq' || !field.logicOperator) &&
+      expectedValues.length > 1
+    ) {
+      rules.push({
+        action: 'SET_VISIBLE',
+        condition: 'eq',
+        value: expectedValues,
+        sourceFieldId: field.logicDependsOn,
+      })
+    } else {
+      rules.push({
+        action: 'SET_VISIBLE',
+        condition: (field.logicOperator as LogicCondition) || 'eq',
+        value: expectedValues[0],
+        sourceFieldId: field.logicDependsOn,
+      })
+    }
+  }
+
   if (field.logicRules?.length) {
     for (const rule of field.logicRules) {
       if (rule.action === 'SET_VISIBLE' || rule.action === 'SET_HIDDEN') {
-        hasAdvancedRule = true
-        const sourceVal = allResponses[rule.sourceFieldId]
-        if (evaluateCondition(sourceVal, rule.condition, rule.value)) {
-          return rule.action === 'SET_VISIBLE'
-        }
+        rules.push({
+          action: rule.action,
+          condition: rule.condition,
+          value: rule.value,
+          sourceFieldId: rule.sourceFieldId,
+        })
       }
     }
   }
 
-  // Evaluate rules defined on OTHER fields targeting this field (source-based: SHOW_FIELD / HIDE_FIELD)
-  if (!hasAdvancedRule && allFields.length > 0) {
+  if (allFields.length > 0) {
     for (const otherField of allFields) {
       if (otherField.logicRules?.length) {
         for (const rule of otherField.logicRules) {
@@ -84,56 +143,57 @@ export function calculateFieldVisibility(
             (rule.action === 'SHOW_FIELD' || rule.action === 'HIDE_FIELD') &&
             rule.targetId === field.id
           ) {
-            hasAdvancedRule = true
-            const sourceVal = allResponses[otherField.id]
-            if (evaluateCondition(sourceVal, rule.condition, rule.value)) {
-              return rule.action === 'SHOW_FIELD'
-            }
+            rules.push({
+              action: rule.action === 'SHOW_FIELD' ? 'SET_VISIBLE' : 'SET_HIDDEN',
+              condition: rule.condition,
+              value: rule.value,
+              sourceFieldId: otherField.id,
+            })
           }
         }
       }
     }
   }
 
-  // If a rule targeted this field but no condition was met, default to the opposite of its primary intent
-  if (hasAdvancedRule) {
-    let hasShowIntent = field.logicRules?.some((r) => r.action === 'SET_VISIBLE') || false
-    if (!hasShowIntent && allFields.length > 0) {
-      hasShowIntent = allFields.some((f) =>
-        f.logicRules?.some((r) => r.action === 'SHOW_FIELD' && r.targetId === field.id),
-      )
-    }
-    return !hasShowIntent
+  if (rules.length === 0) {
+    return field.alwaysVisible !== false
   }
 
-  // Basic fallbacks
-  const checkMatch = (
-    actual: any,
-    expected: string | string[] | undefined,
-    operator: LogicCondition = 'equals',
-  ) => {
-    if (operator === 'equals') {
-      const actualStr = String(actual || '').toLowerCase()
-      if (Array.isArray(expected)) {
-        return expected.some((v) => String(v || '').toLowerCase() === actualStr)
-      }
-      return actualStr === String(expected || '').toLowerCase()
+  let isVisible = field.alwaysVisible !== false
+  let hasRuleMatched = false
+  let matchedShow = false
+  let matchedHide = false
+
+  for (const rule of rules) {
+    const sourceVal = allResponses[rule.sourceFieldId]
+    let isMatch = false
+
+    if (Array.isArray(rule.value) && (rule.condition === 'equals' || rule.condition === 'eq')) {
+      isMatch = rule.value.some((v) => evaluateCondition(sourceVal, 'eq', v))
     } else {
-      const expectedVal = Array.isArray(expected) ? expected[0] : expected
-      return evaluateCondition(actual, operator, expectedVal)
+      isMatch = evaluateCondition(sourceVal, rule.condition, rule.value)
+    }
+
+    if (isMatch) {
+      hasRuleMatched = true
+      if (rule.action === 'SET_VISIBLE') {
+        matchedShow = true
+      } else if (rule.action === 'SET_HIDDEN') {
+        matchedHide = true
+      }
     }
   }
 
-  if (hasRelatedField) {
-    return checkMatch(allResponses[field.relatedFieldId!], field.expectedValue, field.logicOperator)
+  if (hasRuleMatched) {
+    if (matchedHide) return false
+    if (matchedShow) return true
+  } else {
+    if (rules.some((r) => r.action === 'SET_VISIBLE')) {
+      return false
+    }
   }
 
-  if (hasLegacyDependsOn) {
-    return checkMatch(allResponses[field.logicDependsOn!], field.logicValue, field.logicOperator)
-  }
-
-  if (field.alwaysVisible === false) return false
-  return true
+  return isVisible
 }
 
 export function FieldRenderer({

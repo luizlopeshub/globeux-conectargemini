@@ -602,7 +602,28 @@ export function PropertiesPanel({
                       <div className="space-y-2">
                         <Label>Operador</Label>
                         <Select
-                          value={activeField.logicOperator || 'equals'}
+                          value={
+                            [
+                              'equals',
+                              'not_equals',
+                              'greater_than',
+                              'less_than',
+                              'greater_than_or_equal',
+                              'less_than_or_equal',
+                            ].includes(activeField.logicOperator as string)
+                              ? activeField.logicOperator === 'equals'
+                                ? 'eq'
+                                : activeField.logicOperator === 'not_equals'
+                                  ? 'neq'
+                                  : activeField.logicOperator === 'greater_than'
+                                    ? 'gt'
+                                    : activeField.logicOperator === 'less_than'
+                                      ? 'lt'
+                                      : activeField.logicOperator === 'greater_than_or_equal'
+                                        ? 'gte'
+                                        : 'lte'
+                              : activeField.logicOperator || 'eq'
+                          }
                           onValueChange={(val: any) =>
                             handleUpdateField(activeField.id, { logicOperator: val })
                           }
@@ -611,19 +632,20 @@ export function PropertiesPanel({
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="equals">Igual a</SelectItem>
-                            <SelectItem value="greater_than_or_equal">
-                              Maior que ou igual (&gt;=)
-                            </SelectItem>
-                            <SelectItem value="less_than_or_equal">
-                              Menor que ou igual (&lt;=)
-                            </SelectItem>
+                            <SelectItem value="eq">Igual a</SelectItem>
+                            <SelectItem value="neq">Diferente de</SelectItem>
+                            <SelectItem value="gt">Maior que</SelectItem>
+                            <SelectItem value="lt">Menor que</SelectItem>
+                            <SelectItem value="gte">Maior que ou igual (&gt;=)</SelectItem>
+                            <SelectItem value="lte">Menor que ou igual (&lt;=)</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                       <div className="space-y-3 mt-4">
                         <Label>Valor(es) Esperado(s)</Label>
-                        {!activeField.logicOperator || activeField.logicOperator === 'equals' ? (
+                        {!activeField.logicOperator ||
+                        activeField.logicOperator === 'equals' ||
+                        activeField.logicOperator === 'eq' ? (
                           <>
                             <div className="space-y-2">
                               {(Array.isArray(activeField.expectedValue)
@@ -726,7 +748,7 @@ export function PropertiesPanel({
                   const newRule = {
                     id: Math.random().toString(36).substr(2, 9),
                     sourceFieldId: activeField.id,
-                    condition: 'equals' as any,
+                    condition: 'eq' as any,
                     value: '',
                     action: 'SHOW_FIELD' as any,
                   }
@@ -784,19 +806,57 @@ export function PropertiesPanel({
                           {isTargetBased ? 'Se a resposta da origem for' : 'Se a resposta for'}
                         </Label>
                         <Select
-                          value={rule.condition}
+                          value={
+                            [
+                              'equals',
+                              'not_equals',
+                              'greater_than',
+                              'less_than',
+                              'greater_than_or_equal',
+                              'less_than_or_equal',
+                            ].includes(rule.condition as string)
+                              ? rule.condition === 'equals'
+                                ? 'eq'
+                                : rule.condition === 'not_equals'
+                                  ? 'neq'
+                                  : rule.condition === 'greater_than'
+                                    ? 'gt'
+                                    : rule.condition === 'less_than'
+                                      ? 'lt'
+                                      : rule.condition === 'greater_than_or_equal'
+                                        ? 'gte'
+                                        : 'lte'
+                              : rule.condition || 'eq'
+                          }
                           onValueChange={(v) => updateRule({ condition: v })}
                         >
                           <SelectTrigger className="h-8 bg-white text-xs shadow-sm">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="equals">Igual a</SelectItem>
-                            <SelectItem value="not_equals">Diferente de</SelectItem>
-                            <SelectItem value="greater_than">Maior que</SelectItem>
-                            <SelectItem value="less_than">Menor que</SelectItem>
-                            <SelectItem value="greater_than_or_equal">Maior ou igual a</SelectItem>
-                            <SelectItem value="less_than_or_equal">Menor ou igual a</SelectItem>
+                            <SelectItem value="eq">Igual a</SelectItem>
+                            <SelectItem value="neq">Diferente de</SelectItem>
+                            <SelectItem value="gt">Maior que</SelectItem>
+                            <SelectItem value="lt">Menor que</SelectItem>
+                            <SelectItem value="gte">Maior ou igual a</SelectItem>
+                            <SelectItem value="lte">Menor ou igual a</SelectItem>
+                            {rule.condition &&
+                              ![
+                                'eq',
+                                'neq',
+                                'gt',
+                                'lt',
+                                'gte',
+                                'lte',
+                                'equals',
+                                'not_equals',
+                                'greater_than',
+                                'less_than',
+                                'greater_than_or_equal',
+                                'less_than_or_equal',
+                              ].includes(rule.condition) && (
+                                <SelectItem value={rule.condition}>{rule.condition}</SelectItem>
+                              )}
                           </SelectContent>
                         </Select>
                       </div>
