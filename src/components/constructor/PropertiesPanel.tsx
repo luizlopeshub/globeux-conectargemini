@@ -598,18 +598,64 @@ export function PropertiesPanel({
                     </Select>
                   </div>
                   {(activeField.relatedFieldId || activeField.logicDependsOn) && (
-                    <div className="space-y-2">
-                      <Label>Valor Esperado (Igual a)</Label>
-                      <Input
-                        value={activeField.expectedValue || activeField.logicValue || ''}
-                        onChange={(e) =>
+                    <div className="space-y-3">
+                      <Label>Valores Esperados (Igual a)</Label>
+                      <div className="space-y-2">
+                        {(Array.isArray(activeField.expectedValue)
+                          ? activeField.expectedValue
+                          : Array.isArray(activeField.logicValue)
+                            ? activeField.logicValue
+                            : [activeField.expectedValue || activeField.logicValue || '']
+                        ).map((val, idx, arr) => (
+                          <div key={idx} className="flex items-center gap-2">
+                            <Input
+                              value={val}
+                              onChange={(e) => {
+                                const newValues = [...arr]
+                                newValues[idx] = e.target.value
+                                handleUpdateField(activeField.id, {
+                                  expectedValue: newValues,
+                                  logicValue: newValues,
+                                })
+                              }}
+                              placeholder="Ex: Sim"
+                            />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => {
+                                const newValues = arr.filter((_, i) => i !== idx)
+                                handleUpdateField(activeField.id, {
+                                  expectedValue: newValues.length > 0 ? newValues : [''],
+                                  logicValue: newValues.length > 0 ? newValues : [''],
+                                })
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full mt-2"
+                        onClick={() => {
+                          const currentVals = Array.isArray(activeField.expectedValue)
+                            ? activeField.expectedValue
+                            : Array.isArray(activeField.logicValue)
+                              ? activeField.logicValue
+                              : [activeField.expectedValue || activeField.logicValue || '']
                           handleUpdateField(activeField.id, {
-                            expectedValue: e.target.value,
-                            logicValue: e.target.value,
+                            expectedValue: [...currentVals, ''],
+                            logicValue: [...currentVals, ''],
                           })
-                        }
-                        placeholder="Ex: Sim"
-                      />
+                        }}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Adicionar Valor
+                      </Button>
                     </div>
                   )}
                   <div className="p-3 bg-blue-50 text-blue-800 rounded-md text-xs font-medium flex items-start gap-2">

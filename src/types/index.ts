@@ -59,9 +59,9 @@ export interface FormField {
   required?: boolean
   alwaysVisible?: boolean
   relatedFieldId?: string
-  expectedValue?: string
+  expectedValue?: string | string[]
   logicDependsOn?: string
-  logicValue?: string
+  logicValue?: string | string[]
   repeatsBasedOn?: string
   calcOperation?: 'sum' | 'average'
   calcSourceFields?: string[]

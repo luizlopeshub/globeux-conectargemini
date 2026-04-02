@@ -103,18 +103,20 @@ export function calculateFieldVisibility(
   }
 
   // Basic fallbacks
+  const checkMatch = (actual: any, expected: string | string[] | undefined) => {
+    const actualStr = String(actual || '').toLowerCase()
+    if (Array.isArray(expected)) {
+      return expected.some((v) => String(v || '').toLowerCase() === actualStr)
+    }
+    return actualStr === String(expected || '').toLowerCase()
+  }
+
   if (hasRelatedField) {
-    return (
-      String(allResponses[field.relatedFieldId!] || '').toLowerCase() ===
-      String(field.expectedValue || '').toLowerCase()
-    )
+    return checkMatch(allResponses[field.relatedFieldId!], field.expectedValue)
   }
 
   if (hasLegacyDependsOn) {
-    return (
-      String(allResponses[field.logicDependsOn!] || '').toLowerCase() ===
-      String(field.logicValue || '').toLowerCase()
-    )
+    return checkMatch(allResponses[field.logicDependsOn!], field.logicValue)
   }
 
   if (field.alwaysVisible === false) return false
