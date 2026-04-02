@@ -62,6 +62,7 @@ export interface FormField {
   expectedValue?: string | string[]
   logicDependsOn?: string
   logicValue?: string | string[]
+  logicOperator?: LogicCondition
   repeatsBasedOn?: string
   calcOperation?: 'sum' | 'average'
   calcSourceFields?: string[]
@@ -157,7 +158,13 @@ export interface Task {
   updated: string
 }
 
-export type LogicCondition = 'equals' | 'not_equals' | 'greater_than' | 'less_than'
+export type LogicCondition =
+  | 'equals'
+  | 'not_equals'
+  | 'greater_than'
+  | 'less_than'
+  | 'greater_than_or_equal'
+  | 'less_than_or_equal'
 export type LogicAction =
   | 'SHOW_FIELD'
   | 'HIDE_FIELD'

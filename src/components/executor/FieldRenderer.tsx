@@ -53,6 +53,10 @@ export function calculateFieldVisibility(
         return !isNaN(numA) && !isNaN(numE) ? numA > numE : a > e
       case 'less_than':
         return !isNaN(numA) && !isNaN(numE) ? numA < numE : a < e
+      case 'greater_than_or_equal':
+        return !isNaN(numA) && !isNaN(numE) ? numA >= numE : a >= e
+      case 'less_than_or_equal':
+        return !isNaN(numA) && !isNaN(numE) ? numA <= numE : a <= e
       default:
         return false
     }
@@ -103,20 +107,29 @@ export function calculateFieldVisibility(
   }
 
   // Basic fallbacks
-  const checkMatch = (actual: any, expected: string | string[] | undefined) => {
-    const actualStr = String(actual || '').toLowerCase()
-    if (Array.isArray(expected)) {
-      return expected.some((v) => String(v || '').toLowerCase() === actualStr)
+  const checkMatch = (
+    actual: any,
+    expected: string | string[] | undefined,
+    operator: LogicCondition = 'equals',
+  ) => {
+    if (operator === 'equals') {
+      const actualStr = String(actual || '').toLowerCase()
+      if (Array.isArray(expected)) {
+        return expected.some((v) => String(v || '').toLowerCase() === actualStr)
+      }
+      return actualStr === String(expected || '').toLowerCase()
+    } else {
+      const expectedVal = Array.isArray(expected) ? expected[0] : expected
+      return evaluateCondition(actual, operator, expectedVal)
     }
-    return actualStr === String(expected || '').toLowerCase()
   }
 
   if (hasRelatedField) {
-    return checkMatch(allResponses[field.relatedFieldId!], field.expectedValue)
+    return checkMatch(allResponses[field.relatedFieldId!], field.expectedValue, field.logicOperator)
   }
 
   if (hasLegacyDependsOn) {
-    return checkMatch(allResponses[field.logicDependsOn!], field.logicValue)
+    return checkMatch(allResponses[field.logicDependsOn!], field.logicValue, field.logicOperator)
   }
 
   if (field.alwaysVisible === false) return false

@@ -598,65 +598,112 @@ export function PropertiesPanel({
                     </Select>
                   </div>
                   {(activeField.relatedFieldId || activeField.logicDependsOn) && (
-                    <div className="space-y-3">
-                      <Label>Valores Esperados (Igual a)</Label>
+                    <>
                       <div className="space-y-2">
-                        {(Array.isArray(activeField.expectedValue)
-                          ? activeField.expectedValue
-                          : Array.isArray(activeField.logicValue)
-                            ? activeField.logicValue
-                            : [activeField.expectedValue || activeField.logicValue || '']
-                        ).map((val, idx, arr) => (
-                          <div key={idx} className="flex items-center gap-2">
-                            <Input
-                              value={val}
-                              onChange={(e) => {
-                                const newValues = [...arr]
-                                newValues[idx] = e.target.value
-                                handleUpdateField(activeField.id, {
-                                  expectedValue: newValues,
-                                  logicValue: newValues,
-                                })
-                              }}
-                              placeholder="Ex: Sim"
-                            />
+                        <Label>Operador</Label>
+                        <Select
+                          value={activeField.logicOperator || 'equals'}
+                          onValueChange={(val: any) =>
+                            handleUpdateField(activeField.id, { logicOperator: val })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="equals">Igual a</SelectItem>
+                            <SelectItem value="greater_than_or_equal">
+                              Maior que ou igual (&gt;=)
+                            </SelectItem>
+                            <SelectItem value="less_than_or_equal">
+                              Menor que ou igual (&lt;=)
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-3 mt-4">
+                        <Label>Valor(es) Esperado(s)</Label>
+                        {!activeField.logicOperator || activeField.logicOperator === 'equals' ? (
+                          <>
+                            <div className="space-y-2">
+                              {(Array.isArray(activeField.expectedValue)
+                                ? activeField.expectedValue
+                                : Array.isArray(activeField.logicValue)
+                                  ? activeField.logicValue
+                                  : [activeField.expectedValue || activeField.logicValue || '']
+                              ).map((val, idx, arr) => (
+                                <div key={idx} className="flex items-center gap-2">
+                                  <Input
+                                    value={val}
+                                    onChange={(e) => {
+                                      const newValues = [...arr]
+                                      newValues[idx] = e.target.value
+                                      handleUpdateField(activeField.id, {
+                                        expectedValue: newValues,
+                                        logicValue: newValues,
+                                      })
+                                    }}
+                                    placeholder="Ex: Sim"
+                                  />
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    onClick={() => {
+                                      const newValues = arr.filter((_, i) => i !== idx)
+                                      handleUpdateField(activeField.id, {
+                                        expectedValue: newValues.length > 0 ? newValues : [''],
+                                        logicValue: newValues.length > 0 ? newValues : [''],
+                                      })
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
                             <Button
-                              variant="ghost"
-                              size="icon"
-                              className="shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              variant="outline"
+                              size="sm"
+                              className="w-full mt-2"
                               onClick={() => {
-                                const newValues = arr.filter((_, i) => i !== idx)
+                                const currentVals = Array.isArray(activeField.expectedValue)
+                                  ? activeField.expectedValue
+                                  : Array.isArray(activeField.logicValue)
+                                    ? activeField.logicValue
+                                    : [activeField.expectedValue || activeField.logicValue || '']
                                 handleUpdateField(activeField.id, {
-                                  expectedValue: newValues.length > 0 ? newValues : [''],
-                                  logicValue: newValues.length > 0 ? newValues : [''],
+                                  expectedValue: [...currentVals, ''],
+                                  logicValue: [...currentVals, ''],
                                 })
                               }}
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Plus className="h-4 w-4 mr-2" />
+                              Adicionar Valor
                             </Button>
+                          </>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <Input
+                              value={
+                                Array.isArray(activeField.expectedValue)
+                                  ? activeField.expectedValue[0]
+                                  : Array.isArray(activeField.logicValue)
+                                    ? activeField.logicValue[0]
+                                    : activeField.expectedValue || activeField.logicValue || ''
+                              }
+                              onChange={(e) => {
+                                handleUpdateField(activeField.id, {
+                                  expectedValue: [e.target.value],
+                                  logicValue: [e.target.value],
+                                })
+                              }}
+                              placeholder="Ex: 2"
+                            />
                           </div>
-                        ))}
+                        )}
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full mt-2"
-                        onClick={() => {
-                          const currentVals = Array.isArray(activeField.expectedValue)
-                            ? activeField.expectedValue
-                            : Array.isArray(activeField.logicValue)
-                              ? activeField.logicValue
-                              : [activeField.expectedValue || activeField.logicValue || '']
-                          handleUpdateField(activeField.id, {
-                            expectedValue: [...currentVals, ''],
-                            logicValue: [...currentVals, ''],
-                          })
-                        }}
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Adicionar Valor
-                      </Button>
-                    </div>
+                    </>
                   )}
                   <div className="p-3 bg-blue-50 text-blue-800 rounded-md text-xs font-medium flex items-start gap-2">
                     Esta configuração básica será integrada aos Gatilhos de Lógica.
@@ -748,6 +795,8 @@ export function PropertiesPanel({
                             <SelectItem value="not_equals">Diferente de</SelectItem>
                             <SelectItem value="greater_than">Maior que</SelectItem>
                             <SelectItem value="less_than">Menor que</SelectItem>
+                            <SelectItem value="greater_than_or_equal">Maior ou igual a</SelectItem>
+                            <SelectItem value="less_than_or_equal">Menor ou igual a</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
