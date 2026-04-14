@@ -16,9 +16,11 @@ import {
 export function Toolbox({
   onAdd,
   onAddBlock,
+  selectedBlockId,
 }: {
-  onAdd: (t: FieldType) => void
+  onAdd: (t: FieldType, targetBlockId?: string) => void
   onAddBlock: () => void
+  selectedBlockId?: string | null
 }) {
   const tools: { type: FieldType; icon: any; label: string }[] = [
     { type: 'text', icon: Type, label: 'Texto Curto' },
@@ -47,7 +49,7 @@ export function Toolbox({
           variant="outline"
           size="sm"
           className="gap-2 bg-background hover:bg-muted shrink-0 shadow-sm"
-          onClick={() => onAdd(tool.type)}
+          onClick={() => onAdd(tool.type, selectedBlockId || undefined)}
         >
           <tool.icon className="h-4 w-4 text-primary" />
           {tool.label}

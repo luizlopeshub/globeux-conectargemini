@@ -50,7 +50,14 @@ import {
 } from '@/components/ui/select'
 
 export default function Constructor() {
-  const { templates, addTemplate, updateTemplate, currentUser } = useAppStore()
+  const {
+    templates,
+    addTemplate,
+    updateTemplate,
+    currentUser,
+    builderSelectedBlockId,
+    setBuilderSelectedBlockId,
+  } = useAppStore()
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null)
   const [hasLoadedInitial, setHasLoadedInitial] = useState(false)
 
@@ -211,6 +218,10 @@ export default function Constructor() {
     )
   }
 
+  const handleBlockFocus = (blockId: string) => {
+    setBuilderSelectedBlockId(blockId)
+  }
+
   const loadTemplate = (t: Template) => {
     setEditingTemplateId(t.id)
     setTemplateName(t.name)
@@ -240,6 +251,7 @@ export default function Constructor() {
       },
     )
     setActiveItem(null)
+    setBuilderSelectedBlockId(loadedBlocks.length > 0 ? loadedBlocks[0].id : null)
     setMainTab('campos_blocos')
   }
 
@@ -261,6 +273,7 @@ export default function Constructor() {
       footer_text: '',
     })
     setActiveItem(null)
+    setBuilderSelectedBlockId(null)
     setMainTab('campos_blocos')
   }
 
@@ -306,37 +319,43 @@ export default function Constructor() {
     newBlocks.splice(insertIndex, 0, newBlock)
     setBlocks(newBlocks)
     setActiveItem({ id: newBlock.id, type: 'block' })
+    setBuilderSelectedBlockId(newBlock.id)
   }
 
-  const handleAddField = (type: FieldType) => {
-    let targetBlockId =
-      blocks.length > 0 ? blocks[blocks.length - 1].id : `b_${generateId().substring(0, 6)}`
-    let insertIndex = fields.length
+  const handleAddField = (type: FieldType, targetBlockId?: string) => {
+    let blockIdToUse = targetBlockId || builderSelectedBlockId
 
-    if (blocks.length === 0) {
-      setBlocks([{ id: targetBlockId, name: 'Bloco 1' }])
+    if (!blockIdToUse) {
+      blockIdToUse = blocks.length > 0 ? blocks[blocks.length - 1].id : null
     }
 
-    if (activeItem) {
-      if (activeItem.type === 'block') {
-        targetBlockId = activeItem.id
-        const blockFields = fields.filter((f) => f.blockId === targetBlockId)
-        if (blockFields.length > 0) {
-          const lastField = blockFields[blockFields.length - 1]
-          insertIndex = fields.findIndex((f) => f.id === lastField.id) + 1
-        }
-      } else if (activeItem.type === 'field') {
-        const activeField = fields.find((f) => f.id === activeItem.id)
-        if (activeField) {
-          targetBlockId = activeField.blockId
-          insertIndex = fields.findIndex((f) => f.id === activeField.id) + 1
+    if (!blockIdToUse) {
+      blockIdToUse = `b_${generateId().substring(0, 6)}`
+      setBlocks([{ id: blockIdToUse, name: 'Bloco 1' }])
+    }
+
+    const blockFields = fields.filter((f) => f.blockId === blockIdToUse)
+    let insertIndex = fields.length
+
+    if (blockFields.length > 0) {
+      const lastField = blockFields[blockFields.length - 1]
+      insertIndex = fields.findIndex((f) => f.id === lastField.id) + 1
+    } else {
+      const blockIndex = blocks.findIndex((b) => b.id === blockIdToUse)
+      if (blockIndex !== -1 && blockIndex < blocks.length - 1) {
+        for (let i = blockIndex + 1; i < blocks.length; i++) {
+          const nextBlockFields = fields.filter((f) => f.blockId === blocks[i].id)
+          if (nextBlockFields.length > 0) {
+            insertIndex = fields.findIndex((f) => f.id === nextBlockFields[0].id)
+            break
+          }
         }
       }
     }
 
     const newField: FormField = {
       id: `f_${generateId().substring(0, 6)}`,
-      blockId: targetBlockId,
+      blockId: blockIdToUse,
       type,
       label: `Novo Campo (${type})`,
       required: false,
@@ -346,6 +365,7 @@ export default function Constructor() {
     newFields.splice(insertIndex, 0, newField)
     setFields(newFields)
     setActiveItem({ id: newField.id, type: 'field' })
+    setBuilderSelectedBlockId(blockIdToUse)
   }
 
   const handleSave = () => {
@@ -534,7 +554,11 @@ export default function Constructor() {
           >
             {/* Horizontal Toolbox fixed below tabs */}
             <div className="w-full bg-card border-b p-3 shrink-0 shadow-sm overflow-x-auto no-scrollbar z-10 sticky top-0">
-              <Toolbox onAdd={handleAddField} onAddBlock={handleAddBlock} />
+              <Toolbox
+                onAdd={(type, targetBlockId) => handleAddField(type, targetBlockId)}
+                onAddBlock={handleAddBlock}
+                selectedBlockId={builderSelectedBlockId}
+              />
             </div>
 
             {/* Scrollable Canvas Area */}
@@ -638,7 +662,7 @@ export default function Constructor() {
                     onDrop={(e) => handleDrop(e, b.id, 'block')}
                     onDragEnd={handleDragEnd}
                     className={`bg-card rounded-xl border transition-all duration-200 animate-in fade-in slide-in-from-bottom-2 ${
-                      activeItem?.id === b.id && activeItem.type === 'block'
+                      builderSelectedBlockId === b.id
                         ? 'border-primary ring-1 ring-primary shadow-md'
                         : 'border-border shadow-sm hover:border-primary/30'
                     } ${draggedItem?.id === b.id ? 'opacity-40 scale-[0.98]' : ''} ${
@@ -646,10 +670,15 @@ export default function Constructor() {
                         ? 'border-t-4 border-t-primary border-b-0'
                         : ''
                     }`}
+                    onClick={() => handleBlockFocus(b.id)}
                   >
                     <div
                       className="px-5 py-4 bg-muted/30 border-b flex items-center justify-between cursor-pointer group rounded-t-xl"
-                      onClick={() => setActiveItem({ id: b.id, type: 'block' })}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setActiveItem({ id: b.id, type: 'block' })
+                        handleBlockFocus(b.id)
+                      }}
                     >
                       <div className="font-semibold text-base flex items-center gap-3">
                         <GripVertical className="h-5 w-5 text-muted-foreground opacity-50" />
@@ -722,6 +751,7 @@ export default function Constructor() {
                             onClick={(e) => {
                               e.stopPropagation()
                               setActiveItem({ id: f.id, type: 'field' })
+                              handleBlockFocus(b.id)
                             }}
                           >
                             <div className="flex items-stretch bg-card">

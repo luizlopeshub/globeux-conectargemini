@@ -39,6 +39,7 @@ interface AppState {
   subjects: Subject[]
   departments: Department[]
   apiSettings: ApiSettings | null
+  builderSelectedBlockId: string | null
 }
 
 let initialDrafts = {}
@@ -66,6 +67,7 @@ let globalState: AppState = {
   subjects: [],
   departments: [],
   apiSettings: null,
+  builderSelectedBlockId: null,
 }
 
 let listeners: Array<(state: AppState) => void> = []
@@ -128,6 +130,7 @@ export default function useAppStore() {
   return {
     ...state,
     setCurrentUser: (user: User | null) => update({ currentUser: user }),
+    setBuilderSelectedBlockId: (id: string | null) => update({ builderSelectedBlockId: id }),
     saveDraft: (tid: string, data: DraftState) => {
       const newDrafts = { ...globalState.drafts, [tid]: data }
       update({ drafts: newDrafts })
