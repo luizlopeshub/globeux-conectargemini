@@ -286,14 +286,53 @@ export default function Constructor() {
       id: `b_${generateId().substring(0, 6)}`,
       name: `Novo Bloco ${blocks.length + 1}`,
     }
-    setBlocks([...blocks, newBlock])
+
+    let insertIndex = blocks.length
+
+    if (activeItem) {
+      if (activeItem.type === 'block') {
+        const idx = blocks.findIndex((b) => b.id === activeItem.id)
+        if (idx !== -1) insertIndex = idx + 1
+      } else if (activeItem.type === 'field') {
+        const field = fields.find((f) => f.id === activeItem.id)
+        if (field) {
+          const idx = blocks.findIndex((b) => b.id === field.blockId)
+          if (idx !== -1) insertIndex = idx + 1
+        }
+      }
+    }
+
+    const newBlocks = [...blocks]
+    newBlocks.splice(insertIndex, 0, newBlock)
+    setBlocks(newBlocks)
     setActiveItem({ id: newBlock.id, type: 'block' })
   }
 
   const handleAddField = (type: FieldType) => {
-    const targetBlockId =
-      activeItem?.type === 'block' ? activeItem.id : blocks[0]?.id || `b_${generateId()}`
-    if (blocks.length === 0) setBlocks([{ id: targetBlockId, name: 'Bloco 1' }])
+    let targetBlockId =
+      blocks.length > 0 ? blocks[blocks.length - 1].id : `b_${generateId().substring(0, 6)}`
+    let insertIndex = fields.length
+
+    if (blocks.length === 0) {
+      setBlocks([{ id: targetBlockId, name: 'Bloco 1' }])
+    }
+
+    if (activeItem) {
+      if (activeItem.type === 'block') {
+        targetBlockId = activeItem.id
+        const blockFields = fields.filter((f) => f.blockId === targetBlockId)
+        if (blockFields.length > 0) {
+          const lastField = blockFields[blockFields.length - 1]
+          insertIndex = fields.findIndex((f) => f.id === lastField.id) + 1
+        }
+      } else if (activeItem.type === 'field') {
+        const activeField = fields.find((f) => f.id === activeItem.id)
+        if (activeField) {
+          targetBlockId = activeField.blockId
+          insertIndex = fields.findIndex((f) => f.id === activeField.id) + 1
+        }
+      }
+    }
 
     const newField: FormField = {
       id: `f_${generateId().substring(0, 6)}`,
@@ -302,7 +341,10 @@ export default function Constructor() {
       label: `Novo Campo (${type})`,
       required: false,
     }
-    setFields([...fields, newField])
+
+    const newFields = [...fields]
+    newFields.splice(insertIndex, 0, newField)
+    setFields(newFields)
     setActiveItem({ id: newField.id, type: 'field' })
   }
 
