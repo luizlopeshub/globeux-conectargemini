@@ -58,10 +58,15 @@ export interface FormField {
   options?: string
   required?: boolean
   alwaysVisible?: boolean
+  /** @deprecated Use logicRules instead */
   relatedFieldId?: string
+  /** @deprecated Use logicRules instead */
   expectedValue?: string | string[]
+  /** @deprecated Use logicRules instead */
   logicDependsOn?: string
+  /** @deprecated Use logicRules instead */
   logicValue?: string | string[]
+  /** @deprecated Use logicRules instead */
   logicOperator?: LogicCondition
   repeatsBasedOn?: string
   calcOperation?: 'sum' | 'average'

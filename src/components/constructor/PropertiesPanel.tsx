@@ -558,442 +558,295 @@ export function PropertiesPanel({
                 )}
               </div>
             )}
-
-            <div className="pt-4 border-t space-y-4">
-              <h4 className="font-medium text-sm text-primary">Lógica de Visibilidade do Campo</h4>
-              <div className="flex items-center justify-between">
-                <Label>Sempre Visível</Label>
-                <Switch
-                  checked={activeField.alwaysVisible !== false}
-                  onCheckedChange={(c) => handleUpdateField(activeField.id, { alwaysVisible: c })}
-                />
-              </div>
-
-              {activeField.alwaysVisible === false && (
-                <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
-                  <div className="space-y-2">
-                    <Label>Campo Relacionado</Label>
-                    <Select
-                      value={activeField.relatedFieldId || activeField.logicDependsOn || 'none'}
-                      onValueChange={(val) =>
-                        handleUpdateField(activeField.id, {
-                          relatedFieldId: val === 'none' ? undefined : val,
-                          logicDependsOn: val === 'none' ? undefined : val,
-                        })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Nenhum</SelectItem>
-                        {fields
-                          .filter((f) => f.id !== activeField.id)
-                          .map((f) => (
-                            <SelectItem key={f.id} value={f.id}>
-                              {f.label || 'Sem label'}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {(activeField.relatedFieldId || activeField.logicDependsOn) && (
-                    <>
-                      <div className="space-y-2">
-                        <Label>Operador</Label>
-                        <Select
-                          value={
-                            [
-                              'equals',
-                              'not_equals',
-                              'greater_than',
-                              'less_than',
-                              'greater_than_or_equal',
-                              'less_than_or_equal',
-                            ].includes(activeField.logicOperator as string)
-                              ? activeField.logicOperator === 'equals'
-                                ? 'eq'
-                                : activeField.logicOperator === 'not_equals'
-                                  ? 'neq'
-                                  : activeField.logicOperator === 'greater_than'
-                                    ? 'gt'
-                                    : activeField.logicOperator === 'less_than'
-                                      ? 'lt'
-                                      : activeField.logicOperator === 'greater_than_or_equal'
-                                        ? 'gte'
-                                        : 'lte'
-                              : activeField.logicOperator || 'eq'
-                          }
-                          onValueChange={(val: any) =>
-                            handleUpdateField(activeField.id, { logicOperator: val })
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="eq">Igual a</SelectItem>
-                            <SelectItem value="neq">Diferente de</SelectItem>
-                            <SelectItem value="gt">Maior que</SelectItem>
-                            <SelectItem value="lt">Menor que</SelectItem>
-                            <SelectItem value="gte">Maior que ou igual (&gt;=)</SelectItem>
-                            <SelectItem value="lte">Menor que ou igual (&lt;=)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-3 mt-4">
-                        <Label>Valor(es) Esperado(s)</Label>
-                        {!activeField.logicOperator ||
-                        activeField.logicOperator === 'equals' ||
-                        activeField.logicOperator === 'eq' ? (
-                          <>
-                            <div className="space-y-2">
-                              {(Array.isArray(activeField.expectedValue)
-                                ? activeField.expectedValue
-                                : Array.isArray(activeField.logicValue)
-                                  ? activeField.logicValue
-                                  : [activeField.expectedValue || activeField.logicValue || '']
-                              ).map((val, idx, arr) => (
-                                <div key={idx} className="flex items-center gap-2">
-                                  <Input
-                                    value={val}
-                                    onChange={(e) => {
-                                      const newValues = [...arr]
-                                      newValues[idx] = e.target.value
-                                      handleUpdateField(activeField.id, {
-                                        expectedValue: newValues,
-                                        logicValue: newValues,
-                                      })
-                                    }}
-                                    placeholder="Ex: Sim"
-                                  />
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                    onClick={() => {
-                                      const newValues = arr.filter((_, i) => i !== idx)
-                                      handleUpdateField(activeField.id, {
-                                        expectedValue: newValues.length > 0 ? newValues : [''],
-                                        logicValue: newValues.length > 0 ? newValues : [''],
-                                      })
-                                    }}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              ))}
-                            </div>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="w-full mt-2"
-                              onClick={() => {
-                                const currentVals = Array.isArray(activeField.expectedValue)
-                                  ? activeField.expectedValue
-                                  : Array.isArray(activeField.logicValue)
-                                    ? activeField.logicValue
-                                    : [activeField.expectedValue || activeField.logicValue || '']
-                                handleUpdateField(activeField.id, {
-                                  expectedValue: [...currentVals, ''],
-                                  logicValue: [...currentVals, ''],
-                                })
-                              }}
-                            >
-                              <Plus className="h-4 w-4 mr-2" />
-                              Adicionar Valor
-                            </Button>
-                          </>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <Input
-                              value={
-                                Array.isArray(activeField.expectedValue)
-                                  ? activeField.expectedValue[0]
-                                  : Array.isArray(activeField.logicValue)
-                                    ? activeField.logicValue[0]
-                                    : activeField.expectedValue || activeField.logicValue || ''
-                              }
-                              onChange={(e) => {
-                                handleUpdateField(activeField.id, {
-                                  expectedValue: [e.target.value],
-                                  logicValue: [e.target.value],
-                                })
-                              }}
-                              placeholder="Ex: 2"
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </>
-                  )}
-                  <div className="p-3 bg-blue-50 text-blue-800 rounded-md text-xs font-medium flex items-start gap-2">
-                    Esta configuração básica será integrada aos Gatilhos de Lógica.
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
         )}
 
         {tab === 'logica' && (
           <div className="space-y-4 animate-in fade-in duration-200">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="font-medium text-sm text-primary">Regras e Ações Automáticas</h4>
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8"
-                onClick={() => {
-                  const newRule = {
-                    id: Math.random().toString(36).substr(2, 9),
-                    sourceFieldId: activeField.id,
-                    condition: 'eq' as any,
-                    value: '',
-                    action: 'SHOW_FIELD' as any,
-                  }
-                  handleUpdateField(activeField.id, {
-                    logicRules: [...(activeField.logicRules || []), newRule],
-                  })
-                }}
-              >
-                <Plus className="h-4 w-4 mr-1" /> Nova Regra
-              </Button>
-            </div>
-
-            {(!activeField.logicRules || activeField.logicRules.length === 0) && (
-              <div className="text-center p-6 border border-dashed rounded-lg bg-slate-50">
-                <p className="text-sm text-muted-foreground">
-                  Nenhum gatilho definido para este campo.
+            <div className="flex items-center justify-between p-4 border rounded-md bg-slate-50 shadow-sm">
+              <div>
+                <h4 className="font-medium text-sm text-primary">Sempre Visível</h4>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Exibir este campo incondicionalmente.
                 </p>
               </div>
-            )}
-
-            <div className="space-y-4">
-              {activeField.logicRules?.map((rule, idx) => {
-                const updateRule = (updates: any) => {
-                  const newRules = [...(activeField.logicRules || [])]
-                  newRules[idx] = { ...rule, ...updates }
-                  handleUpdateField(activeField.id, { logicRules: newRules })
-                }
-
-                const isTargetBased = ['SET_VISIBLE', 'SET_HIDDEN'].includes(rule.action)
-                const isSourceBased = ['SHOW_FIELD', 'HIDE_FIELD', 'SET_REQUIRED'].includes(
-                  rule.action,
-                )
-
-                return (
-                  <div
-                    key={rule.id}
-                    className="border border-slate-200 p-4 rounded-md space-y-4 bg-slate-50 relative shadow-sm"
-                  >
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute top-2 right-2 h-7 w-7 text-destructive hover:bg-destructive/10"
-                      onClick={() => {
-                        const newRules = [...(activeField.logicRules || [])]
-                        newRules.splice(idx, 1)
-                        handleUpdateField(activeField.id, { logicRules: newRules })
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-
-                    <div className="grid grid-cols-2 gap-3 pr-8">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-semibold text-slate-500">
-                          {isTargetBased ? 'Se a resposta da origem for' : 'Se a resposta for'}
-                        </Label>
-                        <Select
-                          value={
-                            [
-                              'equals',
-                              'not_equals',
-                              'greater_than',
-                              'less_than',
-                              'greater_than_or_equal',
-                              'less_than_or_equal',
-                            ].includes(rule.condition as string)
-                              ? rule.condition === 'equals'
-                                ? 'eq'
-                                : rule.condition === 'not_equals'
-                                  ? 'neq'
-                                  : rule.condition === 'greater_than'
-                                    ? 'gt'
-                                    : rule.condition === 'less_than'
-                                      ? 'lt'
-                                      : rule.condition === 'greater_than_or_equal'
-                                        ? 'gte'
-                                        : 'lte'
-                              : rule.condition || 'eq'
-                          }
-                          onValueChange={(v) => updateRule({ condition: v })}
-                        >
-                          <SelectTrigger className="h-8 bg-white text-xs shadow-sm">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="eq">Igual a</SelectItem>
-                            <SelectItem value="neq">Diferente de</SelectItem>
-                            <SelectItem value="gt">Maior que</SelectItem>
-                            <SelectItem value="lt">Menor que</SelectItem>
-                            <SelectItem value="gte">Maior ou igual a</SelectItem>
-                            <SelectItem value="lte">Menor ou igual a</SelectItem>
-                            {rule.condition &&
-                              ![
-                                'eq',
-                                'neq',
-                                'gt',
-                                'lt',
-                                'gte',
-                                'lte',
-                                'equals',
-                                'not_equals',
-                                'greater_than',
-                                'less_than',
-                                'greater_than_or_equal',
-                                'less_than_or_equal',
-                              ].includes(rule.condition) && (
-                                <SelectItem value={rule.condition}>{rule.condition}</SelectItem>
-                              )}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-semibold text-slate-500">Valor</Label>
-                        <Input
-                          className="h-8 bg-white text-xs shadow-sm"
-                          value={rule.value || ''}
-                          onChange={(e) => updateRule({ value: e.target.value })}
-                          placeholder="Ex: Sim"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5 pt-2 border-t border-slate-200">
-                      <Label className="text-xs font-semibold text-slate-500">
-                        Executar a ação
-                      </Label>
-                      <Select
-                        value={rule.action}
-                        onValueChange={(v) => {
-                          const updates: any = { action: v, message: '', responsibleId: '' }
-                          if (['SET_VISIBLE', 'SET_HIDDEN'].includes(v)) {
-                            updates.targetId = activeField.id
-                            updates.sourceFieldId = ''
-                          } else {
-                            updates.sourceFieldId = activeField.id
-                            updates.targetId = ''
-                          }
-                          updateRule(updates)
-                        }}
-                      >
-                        <SelectTrigger className="h-8 bg-white text-xs shadow-sm">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="SHOW_FIELD">Mostrar outro campo</SelectItem>
-                          <SelectItem value="HIDE_FIELD">Ocultar outro campo</SelectItem>
-                          <SelectItem value="SET_VISIBLE">Tornar este campo visível</SelectItem>
-                          <SelectItem value="SET_HIDDEN">Ocultar este campo</SelectItem>
-                          <SelectItem value="SET_REQUIRED">Tornar campo obrigatório</SelectItem>
-                          <SelectItem value="DISPLAY_ALERT">Exibir Alerta Visual</SelectItem>
-                          <SelectItem value="BLOCK_SUBMIT">Bloquear Submissão</SelectItem>
-                          <SelectItem value="CREATE_ACTION_PLAN">Criar Plano de Ação</SelectItem>
-                          <SelectItem value="ESCALATE_APPROVAL">
-                            Sinalizar Revisão / Escalar
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {isSourceBased && (
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-semibold text-slate-500">Campo Alvo</Label>
-                        <Select
-                          value={rule.targetId || ''}
-                          onValueChange={(v) => updateRule({ targetId: v })}
-                        >
-                          <SelectTrigger className="h-8 bg-white text-xs shadow-sm">
-                            <SelectValue placeholder="Selecione o campo..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {fields
-                              .filter((f) => f.id !== activeField.id)
-                              .map((f) => (
-                                <SelectItem key={f.id} value={f.id}>
-                                  {f.label || 'Sem label'}
-                                </SelectItem>
-                              ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-
-                    {isTargetBased && (
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-semibold text-slate-500">Campo Origem</Label>
-                        <Select
-                          value={rule.sourceFieldId || ''}
-                          onValueChange={(v) => updateRule({ sourceFieldId: v })}
-                        >
-                          <SelectTrigger className="h-8 bg-white text-xs shadow-sm">
-                            <SelectValue placeholder="Selecione o campo..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {fields
-                              .filter((f) => f.id !== activeField.id)
-                              .map((f) => (
-                                <SelectItem key={f.id} value={f.id}>
-                                  {f.label || 'Sem label'}
-                                </SelectItem>
-                              ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-
-                    {['DISPLAY_ALERT', 'BLOCK_SUBMIT'].includes(rule.action) && (
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-semibold text-slate-500">
-                          Mensagem para o Operador
-                        </Label>
-                        <Input
-                          className="h-8 bg-white text-xs shadow-sm"
-                          value={rule.message || ''}
-                          onChange={(e) => updateRule({ message: e.target.value })}
-                          placeholder="Ex: Tire uma foto da avaria imediatamente."
-                        />
-                      </div>
-                    )}
-
-                    {['CREATE_ACTION_PLAN', 'ESCALATE_APPROVAL'].includes(rule.action) && (
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-semibold text-slate-500">
-                          Usuário Responsável
-                        </Label>
-                        <Select
-                          value={rule.responsibleId || ''}
-                          onValueChange={(v) => updateRule({ responsibleId: v })}
-                        >
-                          <SelectTrigger className="h-8 bg-white text-xs shadow-sm">
-                            <SelectValue placeholder="Selecione o usuário..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {users.map((u) => (
-                              <SelectItem key={u.id} value={u.id}>
-                                {u.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
+              <Switch
+                checked={activeField.alwaysVisible !== false}
+                onCheckedChange={(c) => handleUpdateField(activeField.id, { alwaysVisible: c })}
+              />
             </div>
+
+            {activeField.alwaysVisible !== false ? (
+              <div className="p-6 bg-blue-50 text-blue-800 rounded-md text-sm font-medium text-center border border-blue-100">
+                Este campo será exibido incondicionalmente.
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-medium text-sm text-primary">Regras e Ações Automáticas</h4>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8"
+                    onClick={() => {
+                      const newRule = {
+                        id: Math.random().toString(36).substr(2, 9),
+                        sourceFieldId: '',
+                        condition: 'eq' as any,
+                        value: '',
+                        action: 'SET_VISIBLE' as any,
+                        targetId: activeField.id,
+                      }
+                      handleUpdateField(activeField.id, {
+                        logicRules: [...(activeField.logicRules || []), newRule],
+                      })
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-1" /> Nova Regra
+                  </Button>
+                </div>
+
+                {(!activeField.logicRules || activeField.logicRules.length === 0) && (
+                  <div className="text-center p-6 border border-dashed rounded-lg bg-slate-50">
+                    <p className="text-sm text-muted-foreground">
+                      Nenhum gatilho definido para este campo.
+                    </p>
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  {activeField.logicRules?.map((rule, idx) => {
+                    const updateRule = (updates: any) => {
+                      const newRules = [...(activeField.logicRules || [])]
+                      newRules[idx] = { ...rule, ...updates }
+                      handleUpdateField(activeField.id, { logicRules: newRules })
+                    }
+
+                    const isTargetBased = ['SET_VISIBLE', 'SET_HIDDEN'].includes(rule.action)
+                    const isSourceBased = ['SHOW_FIELD', 'HIDE_FIELD', 'SET_REQUIRED'].includes(
+                      rule.action,
+                    )
+
+                    return (
+                      <div
+                        key={rule.id}
+                        className="border border-slate-200 p-4 rounded-md space-y-4 bg-slate-50 relative shadow-sm"
+                      >
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="absolute top-2 right-2 h-7 w-7 text-destructive hover:bg-destructive/10"
+                          onClick={() => {
+                            const newRules = [...(activeField.logicRules || [])]
+                            newRules.splice(idx, 1)
+                            handleUpdateField(activeField.id, { logicRules: newRules })
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+
+                        <div className="grid grid-cols-2 gap-3 pr-8">
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-semibold text-slate-500">
+                              {isTargetBased ? 'Se a resposta da origem for' : 'Se a resposta for'}
+                            </Label>
+                            <Select
+                              value={
+                                [
+                                  'equals',
+                                  'not_equals',
+                                  'greater_than',
+                                  'less_than',
+                                  'greater_than_or_equal',
+                                  'less_than_or_equal',
+                                ].includes(rule.condition as string)
+                                  ? rule.condition === 'equals'
+                                    ? 'eq'
+                                    : rule.condition === 'not_equals'
+                                      ? 'neq'
+                                      : rule.condition === 'greater_than'
+                                        ? 'gt'
+                                        : rule.condition === 'less_than'
+                                          ? 'lt'
+                                          : rule.condition === 'greater_than_or_equal'
+                                            ? 'gte'
+                                            : 'lte'
+                                  : rule.condition || 'eq'
+                              }
+                              onValueChange={(v) => updateRule({ condition: v })}
+                            >
+                              <SelectTrigger className="h-8 bg-white text-xs shadow-sm">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="eq">Igual a</SelectItem>
+                                <SelectItem value="neq">Diferente de</SelectItem>
+                                <SelectItem value="gt">Maior que</SelectItem>
+                                <SelectItem value="lt">Menor que</SelectItem>
+                                <SelectItem value="gte">Maior ou igual a</SelectItem>
+                                <SelectItem value="lte">Menor ou igual a</SelectItem>
+                                {rule.condition &&
+                                  ![
+                                    'eq',
+                                    'neq',
+                                    'gt',
+                                    'lt',
+                                    'gte',
+                                    'lte',
+                                    'equals',
+                                    'not_equals',
+                                    'greater_than',
+                                    'less_than',
+                                    'greater_than_or_equal',
+                                    'less_than_or_equal',
+                                  ].includes(rule.condition) && (
+                                    <SelectItem value={rule.condition}>{rule.condition}</SelectItem>
+                                  )}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-semibold text-slate-500">Valor</Label>
+                            <Input
+                              className="h-8 bg-white text-xs shadow-sm"
+                              value={rule.value || ''}
+                              onChange={(e) => updateRule({ value: e.target.value })}
+                              placeholder="Ex: Sim"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5 pt-2 border-t border-slate-200">
+                          <Label className="text-xs font-semibold text-slate-500">
+                            Executar a ação
+                          </Label>
+                          <Select
+                            value={rule.action}
+                            onValueChange={(v) => {
+                              const updates: any = { action: v, message: '', responsibleId: '' }
+                              if (['SET_VISIBLE', 'SET_HIDDEN'].includes(v)) {
+                                updates.targetId = activeField.id
+                                updates.sourceFieldId = ''
+                              } else {
+                                updates.sourceFieldId = activeField.id
+                                updates.targetId = ''
+                              }
+                              updateRule(updates)
+                            }}
+                          >
+                            <SelectTrigger className="h-8 bg-white text-xs shadow-sm">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="SHOW_FIELD">Mostrar outro campo</SelectItem>
+                              <SelectItem value="HIDE_FIELD">Ocultar outro campo</SelectItem>
+                              <SelectItem value="SET_VISIBLE">Tornar este campo visível</SelectItem>
+                              <SelectItem value="SET_HIDDEN">Ocultar este campo</SelectItem>
+                              <SelectItem value="SET_REQUIRED">Tornar campo obrigatório</SelectItem>
+                              <SelectItem value="DISPLAY_ALERT">Exibir Alerta Visual</SelectItem>
+                              <SelectItem value="BLOCK_SUBMIT">Bloquear Submissão</SelectItem>
+                              <SelectItem value="CREATE_ACTION_PLAN">
+                                Criar Plano de Ação
+                              </SelectItem>
+                              <SelectItem value="ESCALATE_APPROVAL">
+                                Sinalizar Revisão / Escalar
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {isSourceBased && (
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-semibold text-slate-500">
+                              Campo Alvo
+                            </Label>
+                            <Select
+                              value={rule.targetId || ''}
+                              onValueChange={(v) => updateRule({ targetId: v })}
+                            >
+                              <SelectTrigger className="h-8 bg-white text-xs shadow-sm">
+                                <SelectValue placeholder="Selecione o campo..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {fields
+                                  .filter((f) => f.id !== activeField.id)
+                                  .map((f) => (
+                                    <SelectItem key={f.id} value={f.id}>
+                                      {f.label || 'Sem label'}
+                                    </SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+
+                        {isTargetBased && (
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-semibold text-slate-500">
+                              Campo Origem
+                            </Label>
+                            <Select
+                              value={rule.sourceFieldId || ''}
+                              onValueChange={(v) => updateRule({ sourceFieldId: v })}
+                            >
+                              <SelectTrigger className="h-8 bg-white text-xs shadow-sm">
+                                <SelectValue placeholder="Selecione o campo..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {fields
+                                  .filter((f) => f.id !== activeField.id)
+                                  .map((f) => (
+                                    <SelectItem key={f.id} value={f.id}>
+                                      {f.label || 'Sem label'}
+                                    </SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+
+                        {['DISPLAY_ALERT', 'BLOCK_SUBMIT'].includes(rule.action) && (
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-semibold text-slate-500">
+                              Mensagem para o Operador
+                            </Label>
+                            <Input
+                              className="h-8 bg-white text-xs shadow-sm"
+                              value={rule.message || ''}
+                              onChange={(e) => updateRule({ message: e.target.value })}
+                              placeholder="Ex: Tire uma foto da avaria imediatamente."
+                            />
+                          </div>
+                        )}
+
+                        {['CREATE_ACTION_PLAN', 'ESCALATE_APPROVAL'].includes(rule.action) && (
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-semibold text-slate-500">
+                              Usuário Responsável
+                            </Label>
+                            <Select
+                              value={rule.responsibleId || ''}
+                              onValueChange={(v) => updateRule({ responsibleId: v })}
+                            >
+                              <SelectTrigger className="h-8 bg-white text-xs shadow-sm">
+                                <SelectValue placeholder="Selecione o usuário..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {users.map((u) => (
+                                  <SelectItem key={u.id} value={u.id}>
+                                    {u.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>

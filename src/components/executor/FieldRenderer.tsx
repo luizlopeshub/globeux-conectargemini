@@ -30,7 +30,7 @@ export function calculateFieldVisibility(
   allResponses: Record<string, any>,
   allFields: FormField[] = [],
 ): boolean {
-  if (field.alwaysVisible === true) return true
+  if (field.alwaysVisible !== false) return true
 
   const evaluateCondition = (actual: any, condition: LogicCondition, expected: any) => {
     const aStr = String(actual || '').toLowerCase()
@@ -156,10 +156,9 @@ export function calculateFieldVisibility(
   }
 
   if (rules.length === 0) {
-    return field.alwaysVisible !== false
+    return false
   }
 
-  let isVisible = field.alwaysVisible !== false
   let hasRuleMatched = false
   let matchedShow = false
   let matchedHide = false
@@ -187,13 +186,9 @@ export function calculateFieldVisibility(
   if (hasRuleMatched) {
     if (matchedHide) return false
     if (matchedShow) return true
-  } else {
-    if (rules.some((r) => r.action === 'SET_VISIBLE')) {
-      return false
-    }
   }
 
-  return isVisible
+  return false
 }
 
 export function FieldRenderer({
