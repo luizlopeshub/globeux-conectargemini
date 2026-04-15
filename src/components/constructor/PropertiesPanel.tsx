@@ -627,7 +627,10 @@ export function PropertiesPanel({
                     const updateRule = (updates: any) => {
                       const newRules = [...(activeField.logicRules || [])]
                       newRules[idx] = { ...rule, ...updates }
-                      handleUpdateField(activeField.id, { logicRules: newRules })
+                      handleUpdateField(activeField.id, {
+                        logicRules: newRules,
+                        alwaysVisible: false,
+                      })
                     }
 
                     const isTargetBased = ['SET_VISIBLE', 'SET_HIDDEN'].includes(rule.action)
@@ -744,7 +747,7 @@ export function PropertiesPanel({
                               const updates: any = { action: v, message: '', responsibleId: '' }
                               if (['SET_VISIBLE', 'SET_HIDDEN'].includes(v)) {
                                 updates.targetId = activeField.id
-                                updates.sourceFieldId = ''
+                                updates.sourceFieldId = rule.sourceFieldId || ''
                               } else {
                                 updates.sourceFieldId = activeField.id
                                 updates.targetId = ''

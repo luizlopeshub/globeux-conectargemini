@@ -25,11 +25,25 @@ interface Props {
   allFields?: FormField[]
 }
 
-export function evaluateCondition(actual: any, condition: LogicCondition, expected: any) {
-  const aStr = String(actual || '').toLowerCase()
-  const eStr = String(expected || '').toLowerCase()
+export function evaluateCondition(actual: any, condition: LogicCondition, expected: any): boolean {
+  if (actual === null || actual === undefined || actual === '') {
+    return false
+  }
 
-  const isNumA = actual !== null && actual !== undefined && actual !== '' && !isNaN(Number(actual))
+  if (Array.isArray(actual)) {
+    if (actual.length === 0) return false
+    if (condition === 'neq' || condition === 'not_equals') {
+      return actual.every((a) => evaluateCondition(a, condition, expected))
+    }
+    return actual.some((a) => evaluateCondition(a, condition, expected))
+  }
+
+  const aStr = String(actual).trim().toLowerCase()
+  const eStr = String(expected || '')
+    .trim()
+    .toLowerCase()
+
+  const isNumA = !isNaN(Number(actual))
   const isNumE =
     expected !== null && expected !== undefined && expected !== '' && !isNaN(Number(expected))
   const numA = Number(actual)
@@ -64,8 +78,6 @@ export function calculateFieldVisibility(
   allResponses: Record<string, any>,
   allFields: FormField[] = [],
 ): boolean {
-  if (field.alwaysVisible !== false) return true
-
   const rules: Array<{
     action: string
     condition: LogicCondition
@@ -154,11 +166,22 @@ export function calculateFieldVisibility(
     }
   }
 
-  if (rules.length === 0) {
-    return false
+  const hasAnyLogicRule = field.logicRules && field.logicRules.length > 0
+  const externalVisibilityRules = allFields.filter((f) =>
+    f.logicRules?.some(
+      (r) => (r.action === 'SHOW_FIELD' || r.action === 'HIDE_FIELD') && r.targetId === field.id,
+    ),
+  )
+
+  if (
+    !hasAnyLogicRule &&
+    externalVisibilityRules.length === 0 &&
+    !field.relatedFieldId &&
+    (!field.logicDependsOn || field.logicDependsOn === 'none')
+  ) {
+    return field.alwaysVisible !== false
   }
 
-  let hasRuleMatched = false
   let matchedShow = false
   let matchedHide = false
 
@@ -173,21 +196,18 @@ export function calculateFieldVisibility(
     }
 
     if (isMatch) {
-      hasRuleMatched = true
-      if (rule.action === 'SET_VISIBLE') {
-        matchedShow = true
-      } else if (rule.action === 'SET_HIDDEN') {
-        matchedHide = true
-      }
+      if (rule.action === 'SET_VISIBLE') matchedShow = true
+      if (rule.action === 'SET_HIDDEN') matchedHide = true
     }
   }
 
-  if (hasRuleMatched) {
-    if (matchedHide) return false
-    if (matchedShow) return true
-  }
+  if (matchedHide) return false
+  if (matchedShow) return true
 
-  return false
+  const hasShowRules = rules.some((r) => r.action === 'SET_VISIBLE')
+  if (hasShowRules) return false
+
+  return true
 }
 
 export function FieldRenderer({
