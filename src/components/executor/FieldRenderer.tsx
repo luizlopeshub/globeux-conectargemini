@@ -38,12 +38,44 @@ export function evaluateCondition(actual: any, condition: LogicCondition, expect
     return actual.some((a) => evaluateCondition(a, condition, expected))
   }
 
+  const isNumericOperator = [
+    'gt',
+    'lt',
+    'gte',
+    'lte',
+    'greater_than',
+    'less_than',
+    'greater_than_or_equal',
+    'less_than_or_equal',
+  ].includes(condition)
+
+  if (isNumericOperator) {
+    const numA = Number(actual)
+    const numE = Number(expected)
+    if (isNaN(numA) || isNaN(numE)) return false
+
+    switch (condition) {
+      case 'greater_than':
+      case 'gt':
+        return numA > numE
+      case 'less_than':
+      case 'lt':
+        return numA < numE
+      case 'greater_than_or_equal':
+      case 'gte':
+        return numA >= numE
+      case 'less_than_or_equal':
+      case 'lte':
+        return numA <= numE
+    }
+  }
+
   const aStr = String(actual).trim().toLowerCase()
   const eStr = String(expected || '')
     .trim()
     .toLowerCase()
 
-  const isNumA = !isNaN(Number(actual))
+  const isNumA = actual !== '' && !isNaN(Number(actual))
   const isNumE =
     expected !== null && expected !== undefined && expected !== '' && !isNaN(Number(expected))
   const numA = Number(actual)
@@ -56,18 +88,6 @@ export function evaluateCondition(actual: any, condition: LogicCondition, expect
     case 'not_equals':
     case 'neq':
       return isNumA && isNumE ? numA !== numE : aStr !== eStr
-    case 'greater_than':
-    case 'gt':
-      return isNumA && isNumE ? numA > numE : aStr > eStr
-    case 'less_than':
-    case 'lt':
-      return isNumA && isNumE ? numA < numE : aStr < eStr
-    case 'greater_than_or_equal':
-    case 'gte':
-      return isNumA && isNumE ? numA >= numE : aStr >= eStr
-    case 'less_than_or_equal':
-    case 'lte':
-      return isNumA && isNumE ? numA <= numE : aStr <= eStr
     default:
       return false
   }
@@ -139,7 +159,7 @@ export function calculateFieldVisibility(
         rules.push({
           action: rule.action,
           condition: rule.condition,
-          value: rule.value,
+          value: rule.targetValue !== undefined ? rule.targetValue : rule.value,
           sourceFieldId: rule.sourceFieldId,
         })
       }
@@ -157,7 +177,7 @@ export function calculateFieldVisibility(
             rules.push({
               action: rule.action === 'SHOW_FIELD' ? 'SET_VISIBLE' : 'SET_HIDDEN',
               condition: rule.condition,
-              value: rule.value,
+              value: rule.targetValue !== undefined ? rule.targetValue : rule.value,
               sourceFieldId: otherField.id,
             })
           }
@@ -166,16 +186,8 @@ export function calculateFieldVisibility(
     }
   }
 
-  const hasAnyLogicRule = field.logicRules && field.logicRules.length > 0
-  const externalVisibilityRules = allFields.filter((f) =>
-    f.logicRules?.some(
-      (r) => (r.action === 'SHOW_FIELD' || r.action === 'HIDE_FIELD') && r.targetId === field.id,
-    ),
-  )
-
   if (
-    !hasAnyLogicRule &&
-    externalVisibilityRules.length === 0 &&
+    rules.length === 0 &&
     !field.relatedFieldId &&
     (!field.logicDependsOn || field.logicDependsOn === 'none')
   ) {
@@ -207,7 +219,7 @@ export function calculateFieldVisibility(
   const hasShowRules = rules.some((r) => r.action === 'SET_VISIBLE')
   if (hasShowRules) return false
 
-  return true
+  return field.alwaysVisible !== false
 }
 
 export function FieldRenderer({
@@ -586,11 +598,13 @@ export function FieldRenderer({
 
     for (const rule of rulesToCheck) {
       const sourceVal = allAnswers[rule.sourceFieldId]
+      const expectedVal = rule.targetValue !== undefined ? rule.targetValue : rule.value
+
       let isMatch = false
-      if (Array.isArray(rule.value) && (rule.condition === 'equals' || rule.condition === 'eq')) {
-        isMatch = rule.value.some((v) => evaluateCondition(sourceVal, 'eq', v))
+      if (Array.isArray(expectedVal) && (rule.condition === 'equals' || rule.condition === 'eq')) {
+        isMatch = expectedVal.some((v) => evaluateCondition(sourceVal, 'eq', v))
       } else {
-        isMatch = evaluateCondition(sourceVal, rule.condition, rule.value)
+        isMatch = evaluateCondition(sourceVal, rule.condition, expectedVal)
       }
 
       if (isMatch) {

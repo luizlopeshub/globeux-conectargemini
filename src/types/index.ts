@@ -194,7 +194,8 @@ export interface LogicRule {
   id: string
   sourceFieldId: string
   condition: LogicCondition
-  value: any
+  targetValue?: any
+  value?: any
   action: LogicAction
   targetId?: string
   message?: string

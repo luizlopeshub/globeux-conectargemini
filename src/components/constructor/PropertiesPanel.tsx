@@ -600,6 +600,7 @@ export function PropertiesPanel({
                         id: Math.random().toString(36).substr(2, 9),
                         sourceFieldId: '',
                         condition: 'eq' as any,
+                        targetValue: '',
                         value: '',
                         action: 'SET_VISIBLE' as any,
                         targetId: activeField.id,
@@ -627,9 +628,12 @@ export function PropertiesPanel({
                     const updateRule = (updates: any) => {
                       const newRules = [...(activeField.logicRules || [])]
                       newRules[idx] = { ...rule, ...updates }
+                      const isVisibilityAction = ['SET_VISIBLE', 'SET_HIDDEN'].includes(
+                        newRules[idx].action,
+                      )
                       handleUpdateField(activeField.id, {
                         logicRules: newRules,
-                        alwaysVisible: false,
+                        ...(isVisibilityAction ? { alwaysVisible: false } : {}),
                       })
                     }
 
@@ -730,8 +734,12 @@ export function PropertiesPanel({
                             <Label className="text-xs font-semibold text-slate-500">Valor</Label>
                             <Input
                               className="h-8 bg-white text-xs shadow-sm"
-                              value={rule.value || ''}
-                              onChange={(e) => updateRule({ value: e.target.value })}
+                              value={
+                                rule.targetValue !== undefined ? rule.targetValue : rule.value || ''
+                              }
+                              onChange={(e) =>
+                                updateRule({ targetValue: e.target.value, value: e.target.value })
+                              }
                               placeholder="Ex: Sim"
                             />
                           </div>
