@@ -182,6 +182,8 @@ export type LogicAction =
   | 'SET_VISIBLE'
   | 'SET_HIDDEN'
   | 'SET_REQUIRED'
+  | 'REQUIRE_PHOTO'
+  | 'REQUIRE_ATTACHMENT'
   | 'DISPLAY_ALERT'
   | 'BLOCK_SUBMIT'
   | 'CREATE_ACTION_PLAN'

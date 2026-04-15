@@ -563,7 +563,7 @@ export function PropertiesPanel({
 
         {tab === 'logica' && (
           <div className="space-y-4 animate-in fade-in duration-200">
-            <div className="flex items-center justify-between p-4 border rounded-md bg-slate-50 shadow-sm">
+            <div className="flex items-center justify-between p-4 border rounded-md bg-slate-50 shadow-sm mb-4">
               <div>
                 <h4 className="font-medium text-sm text-primary">Sempre Visível</h4>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -577,8 +577,15 @@ export function PropertiesPanel({
             </div>
 
             {activeField.alwaysVisible !== false ? (
-              <div className="p-6 bg-blue-50 text-blue-800 rounded-md text-sm font-medium text-center border border-blue-100">
-                Este campo será exibido incondicionalmente.
+              <div className="p-6 bg-blue-50 text-blue-800 rounded-md text-sm font-medium text-center border border-blue-100 flex flex-col items-center gap-4">
+                <span>Este campo será exibido incondicionalmente.</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleUpdateField(activeField.id, { alwaysVisible: false })}
+                >
+                  Configurar Regras e Visibilidade
+                </Button>
               </div>
             ) : (
               <>
@@ -599,6 +606,7 @@ export function PropertiesPanel({
                       }
                       handleUpdateField(activeField.id, {
                         logicRules: [...(activeField.logicRules || []), newRule],
+                        alwaysVisible: false,
                       })
                     }}
                   >
@@ -623,9 +631,17 @@ export function PropertiesPanel({
                     }
 
                     const isTargetBased = ['SET_VISIBLE', 'SET_HIDDEN'].includes(rule.action)
-                    const isSourceBased = ['SHOW_FIELD', 'HIDE_FIELD', 'SET_REQUIRED'].includes(
-                      rule.action,
-                    )
+                    const isSourceBased = [
+                      'SHOW_FIELD',
+                      'HIDE_FIELD',
+                      'SET_REQUIRED',
+                      'REQUIRE_PHOTO',
+                      'REQUIRE_ATTACHMENT',
+                      'DISPLAY_ALERT',
+                      'BLOCK_SUBMIT',
+                      'CREATE_ACTION_PLAN',
+                      'ESCALATE_APPROVAL',
+                    ].includes(rule.action)
 
                     return (
                       <div
@@ -648,7 +664,9 @@ export function PropertiesPanel({
                         <div className="grid grid-cols-2 gap-3 pr-8">
                           <div className="space-y-1.5">
                             <Label className="text-xs font-semibold text-slate-500">
-                              {isTargetBased ? 'Se a resposta da origem for' : 'Se a resposta for'}
+                              {isTargetBased
+                                ? 'Se a resposta da referência for'
+                                : 'Se a resposta for'}
                             </Label>
                             <Select
                               value={
@@ -738,11 +756,15 @@ export function PropertiesPanel({
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="SHOW_FIELD">Mostrar outro campo</SelectItem>
-                              <SelectItem value="HIDE_FIELD">Ocultar outro campo</SelectItem>
-                              <SelectItem value="SET_VISIBLE">Tornar este campo visível</SelectItem>
-                              <SelectItem value="SET_HIDDEN">Ocultar este campo</SelectItem>
+                              <SelectItem value="SHOW_FIELD">Mostrar outro campo (Push)</SelectItem>
+                              <SelectItem value="HIDE_FIELD">Ocultar outro campo (Push)</SelectItem>
+                              <SelectItem value="SET_VISIBLE">
+                                Tornar este campo visível (Pull)
+                              </SelectItem>
+                              <SelectItem value="SET_HIDDEN">Ocultar este campo (Pull)</SelectItem>
                               <SelectItem value="SET_REQUIRED">Tornar campo obrigatório</SelectItem>
+                              <SelectItem value="REQUIRE_PHOTO">Exigir Foto</SelectItem>
+                              <SelectItem value="REQUIRE_ATTACHMENT">Exigir Anexo</SelectItem>
                               <SelectItem value="DISPLAY_ALERT">Exibir Alerta Visual</SelectItem>
                               <SelectItem value="BLOCK_SUBMIT">Bloquear Submissão</SelectItem>
                               <SelectItem value="CREATE_ACTION_PLAN">
@@ -755,35 +777,47 @@ export function PropertiesPanel({
                           </Select>
                         </div>
 
-                        {isSourceBased && (
-                          <div className="space-y-1.5">
-                            <Label className="text-xs font-semibold text-slate-500">
-                              Campo Alvo
-                            </Label>
-                            <Select
-                              value={rule.targetId || ''}
-                              onValueChange={(v) => updateRule({ targetId: v })}
-                            >
-                              <SelectTrigger className="h-8 bg-white text-xs shadow-sm">
-                                <SelectValue placeholder="Selecione o campo..." />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {fields
-                                  .filter((f) => f.id !== activeField.id)
-                                  .map((f) => (
-                                    <SelectItem key={f.id} value={f.id}>
-                                      {f.label || 'Sem label'}
-                                    </SelectItem>
-                                  ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        )}
+                        {isSourceBased &&
+                          [
+                            'SHOW_FIELD',
+                            'HIDE_FIELD',
+                            'SET_REQUIRED',
+                            'REQUIRE_PHOTO',
+                            'REQUIRE_ATTACHMENT',
+                          ].includes(rule.action) && (
+                            <div className="space-y-1.5">
+                              <Label className="text-xs font-semibold text-slate-500">
+                                Campo Alvo
+                              </Label>
+                              <Select
+                                value={rule.targetId || ''}
+                                onValueChange={(v) => {
+                                  updateRule({ targetId: v })
+                                  if (['SHOW_FIELD', 'HIDE_FIELD'].includes(rule.action) && v) {
+                                    handleUpdateField(v, { alwaysVisible: false })
+                                  }
+                                }}
+                              >
+                                <SelectTrigger className="h-8 bg-white text-xs shadow-sm">
+                                  <SelectValue placeholder="Selecione o campo..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {fields
+                                    .filter((f) => f.id !== activeField.id)
+                                    .map((f) => (
+                                      <SelectItem key={f.id} value={f.id}>
+                                        {f.label || 'Sem label'}
+                                      </SelectItem>
+                                    ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
 
                         {isTargetBased && (
                           <div className="space-y-1.5">
                             <Label className="text-xs font-semibold text-slate-500">
-                              Campo Origem
+                              Campo de Referência (Pull)
                             </Label>
                             <Select
                               value={rule.sourceFieldId || ''}

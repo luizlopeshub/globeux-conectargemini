@@ -25,47 +25,46 @@ interface Props {
   allFields?: FormField[]
 }
 
+export function evaluateCondition(actual: any, condition: LogicCondition, expected: any) {
+  const aStr = String(actual || '').toLowerCase()
+  const eStr = String(expected || '').toLowerCase()
+
+  const isNumA = actual !== null && actual !== undefined && actual !== '' && !isNaN(Number(actual))
+  const isNumE =
+    expected !== null && expected !== undefined && expected !== '' && !isNaN(Number(expected))
+  const numA = Number(actual)
+  const numE = Number(expected)
+
+  switch (condition) {
+    case 'equals':
+    case 'eq':
+      return isNumA && isNumE ? numA === numE : aStr === eStr
+    case 'not_equals':
+    case 'neq':
+      return isNumA && isNumE ? numA !== numE : aStr !== eStr
+    case 'greater_than':
+    case 'gt':
+      return isNumA && isNumE ? numA > numE : aStr > eStr
+    case 'less_than':
+    case 'lt':
+      return isNumA && isNumE ? numA < numE : aStr < eStr
+    case 'greater_than_or_equal':
+    case 'gte':
+      return isNumA && isNumE ? numA >= numE : aStr >= eStr
+    case 'less_than_or_equal':
+    case 'lte':
+      return isNumA && isNumE ? numA <= numE : aStr <= eStr
+    default:
+      return false
+  }
+}
+
 export function calculateFieldVisibility(
   field: FormField,
   allResponses: Record<string, any>,
   allFields: FormField[] = [],
 ): boolean {
   if (field.alwaysVisible !== false) return true
-
-  const evaluateCondition = (actual: any, condition: LogicCondition, expected: any) => {
-    const aStr = String(actual || '').toLowerCase()
-    const eStr = String(expected || '').toLowerCase()
-
-    const isNumA =
-      actual !== null && actual !== undefined && actual !== '' && !isNaN(Number(actual))
-    const isNumE =
-      expected !== null && expected !== undefined && expected !== '' && !isNaN(Number(expected))
-    const numA = Number(actual)
-    const numE = Number(expected)
-
-    switch (condition) {
-      case 'equals':
-      case 'eq':
-        return aStr === eStr
-      case 'not_equals':
-      case 'neq':
-        return aStr !== eStr
-      case 'greater_than':
-      case 'gt':
-        return isNumA && isNumE ? numA > numE : aStr > eStr
-      case 'less_than':
-      case 'lt':
-        return isNumA && isNumE ? numA < numE : aStr < eStr
-      case 'greater_than_or_equal':
-      case 'gte':
-        return isNumA && isNumE ? numA >= numE : aStr >= eStr
-      case 'less_than_or_equal':
-      case 'lte':
-        return isNumA && isNumE ? numA <= numE : aStr <= eStr
-      default:
-        return false
-    }
-  }
 
   const rules: Array<{
     action: string
@@ -553,23 +552,71 @@ export function FieldRenderer({
     [field, allAnswers, allFields],
   )
 
+  const engineState = useMemo(() => {
+    let localAlert = alert
+    let localError = error
+    let localRequired = dynamicRequired || field.required
+    let requirePhoto = false
+    let requireAttachment = false
+
+    const rulesToCheck = [
+      ...(field.logicRules || []),
+      ...allFields.flatMap((f) => (f.logicRules || []).filter((r) => r.targetId === field.id)),
+    ]
+
+    for (const rule of rulesToCheck) {
+      const sourceVal = allAnswers[rule.sourceFieldId]
+      let isMatch = false
+      if (Array.isArray(rule.value) && (rule.condition === 'equals' || rule.condition === 'eq')) {
+        isMatch = rule.value.some((v) => evaluateCondition(sourceVal, 'eq', v))
+      } else {
+        isMatch = evaluateCondition(sourceVal, rule.condition, rule.value)
+      }
+
+      if (isMatch) {
+        if (rule.action === 'DISPLAY_ALERT') localAlert = rule.message || localAlert
+        if (rule.action === 'BLOCK_SUBMIT')
+          localError = rule.message || 'Submissão bloqueada por regra de negócio.'
+        if (rule.action === 'SET_REQUIRED') localRequired = true
+        if (rule.action === 'REQUIRE_PHOTO') requirePhoto = true
+        if (rule.action === 'REQUIRE_ATTACHMENT') requireAttachment = true
+      }
+    }
+
+    return { localAlert, localError, localRequired, requirePhoto, requireAttachment }
+  }, [field, allAnswers, allFields, alert, error, dynamicRequired])
+
   if (!isVisible) return null
+
+  const displayError = engineState.localError
+  const displayAlert = engineState.localAlert
 
   return (
     <Card
-      className={`border-muted shadow-sm ${error ? 'border-destructive/50 ring-1 ring-destructive/50' : ''}`}
+      className={`border-muted shadow-sm ${displayError ? 'border-destructive/50 ring-1 ring-destructive/50' : ''}`}
     >
       <CardContent className="p-5">
         <Label className="text-base font-medium mb-4 block">
-          {field.label}{' '}
-          {(field.required || dynamicRequired) && <span className="text-destructive">*</span>}
+          {field.label} {engineState.localRequired && <span className="text-destructive">*</span>}
+          {engineState.requirePhoto && (
+            <span className="text-blue-500 ml-1" title="Foto Obrigatória">
+              (📸 Obrigatório)
+            </span>
+          )}
+          {engineState.requireAttachment && (
+            <span className="text-purple-500 ml-1" title="Anexo Obrigatório">
+              (📎 Obrigatório)
+            </span>
+          )}
         </Label>
         {renderInput()}
-        {error && <p className="text-sm font-medium text-destructive mt-3">{error}</p>}
-        {alert && (
+        {displayError && (
+          <p className="text-sm font-medium text-destructive mt-3">{displayError}</p>
+        )}
+        {displayAlert && (
           <div className="mt-4 p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-md text-sm flex items-start gap-2 animate-in fade-in duration-300">
             <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-            <p className="font-medium leading-relaxed">{alert}</p>
+            <p className="font-medium leading-relaxed">{displayAlert}</p>
           </div>
         )}
       </CardContent>
