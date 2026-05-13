@@ -211,7 +211,7 @@ export function PropertiesPanel({
                 key={`label-${activeField.id}`}
                 autoFocus
                 placeholder="Ex: Nome do Motorista"
-                value={activeField.label || ''}
+                value={activeField.label ?? ''}
                 onChange={(e) => handleUpdateField(activeField.id, { label: e.target.value })}
               />
             </div>
@@ -220,7 +220,7 @@ export function PropertiesPanel({
               <Input
                 key={`inst-${activeField.id}`}
                 placeholder="Ex: Descreva o procedimento..."
-                value={(activeField as any).instructions || ''}
+                value={(activeField as any).instructions ?? ''}
                 onChange={(e) =>
                   handleUpdateField(activeField.id, { instructions: e.target.value } as any)
                 }

@@ -137,6 +137,7 @@ export default function useAppStore() {
         blockId,
         type,
         label: '',
+        placeholder: '',
         instructions: '',
         required: false,
         disabled: false,
