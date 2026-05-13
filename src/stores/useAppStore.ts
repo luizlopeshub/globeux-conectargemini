@@ -131,6 +131,17 @@ export default function useAppStore() {
     ...state,
     setCurrentUser: (user: User | null) => update({ currentUser: user }),
     setBuilderSelectedBlockId: (id: string | null) => update({ builderSelectedBlockId: id }),
+    addField: (blockId: string, type: any = 'text') => {
+      return {
+        id: 'f_' + Math.random().toString(36).substr(2, 9),
+        blockId,
+        type,
+        label: '',
+        instructions: '',
+        required: false,
+        disabled: false,
+      }
+    },
     saveDraft: (tid: string, data: DraftState) => {
       const newDrafts = { ...globalState.drafts, [tid]: data }
       update({ drafts: newDrafts })

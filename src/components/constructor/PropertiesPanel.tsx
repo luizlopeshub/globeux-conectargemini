@@ -49,6 +49,16 @@ export function PropertiesPanel({
 
   useEffect(() => {
     if (
+      activeField &&
+      (activeField.label === 'Novo Campo' || activeField.label === 'Nova Pergunta')
+    ) {
+      handleUpdateField(activeField.id, { label: '', instructions: '' } as any)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeField?.id])
+
+  useEffect(() => {
+    if (
       activeField?.type === 'lookup' &&
       (!activeField.dataSourceType || activeField.dataSourceType === 'master_data')
     ) {
@@ -192,10 +202,24 @@ export function PropertiesPanel({
             </div>
 
             <div className="space-y-2">
-              <Label>Label da Pergunta</Label>
+              <Label>Rótulo do Campo (Label)</Label>
               <Input
+                key={`label-${activeField.id}`}
+                autoFocus
+                placeholder="Ex: Nome do Motorista"
                 value={activeField.label}
                 onChange={(e) => handleUpdateField(activeField.id, { label: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Instruções / Dica</Label>
+              <Input
+                key={`inst-${activeField.id}`}
+                placeholder="Ex: Descreva o procedimento..."
+                value={(activeField as any).instructions || ''}
+                onChange={(e) =>
+                  handleUpdateField(activeField.id, { instructions: e.target.value } as any)
+                }
               />
             </div>
             <div className="space-y-2">
