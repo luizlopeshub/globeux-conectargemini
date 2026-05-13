@@ -368,7 +368,7 @@ export default function Constructor() {
     setBuilderSelectedBlockId(blockIdToUse)
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!templateName.trim()) {
       setMainTab('campos_blocos')
       setNameError('O Nome do checklist é obrigatório')
@@ -414,25 +414,31 @@ export default function Constructor() {
       subject,
       description,
       attachments,
-      blocks,
-      fields,
+      blocks: JSON.parse(JSON.stringify(blocks)),
+      fields: JSON.parse(
+        JSON.stringify(fields, (key, value) => {
+          if (typeof value === 'number' && isNaN(value)) return null
+          return value
+        }),
+      ),
       assignedUsers,
       assignedDepartments,
       pdf_settings: pdfSettings,
     }
 
-    if (editingTemplateId) {
-      updateTemplate({ ...templates.find((t) => t.id === editingTemplateId)!, ...tmplData })
-      toast({ title: 'Template atualizado!' })
+    if (editingTemplateId && !String(editingTemplateId).startsWith('tmpl_')) {
+      const existing = templates.find((t) => t.id === editingTemplateId)
+      if (existing) {
+        await updateTemplate({ ...existing, ...tmplData })
+      }
     } else {
-      const newTemplate: Template = {
-        id: `tmpl_${generateId()}`,
+      const created = await addTemplate({
         createdAt: new Date().toISOString(),
         ...tmplData,
+      })
+      if (created && created.id) {
+        setEditingTemplateId(created.id)
       }
-      addTemplate(newTemplate)
-      setEditingTemplateId(newTemplate.id)
-      toast({ title: 'Novo template salvo!' })
     }
   }
 

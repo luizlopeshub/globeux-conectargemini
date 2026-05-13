@@ -291,14 +291,26 @@ export default function useAppStore() {
     },
 
     addTemplate: async (t: Partial<Template>) => {
+      let createdRecord: any = null
       await withLoading(async () => {
-        const record = await pb.collection('templates').create(t)
+        const payload = { ...t }
+        if (payload.id && String(payload.id).startsWith('tmpl_')) {
+          delete payload.id
+        }
+        const record = await pb.collection('templates').create(payload)
+        createdRecord = record
         update({ templates: [...globalState.templates, record as any] })
       }, 'Template criado com sucesso!')
+      return createdRecord
     },
     updateTemplate: async (t: Template) => {
+      if (!t.id || String(t.id).startsWith('tmpl_')) {
+        console.error('Tentativa de atualizar template com ID inválido ou local.')
+        return
+      }
       await withLoading(async () => {
-        const record = await pb.collection('templates').update(t.id, t)
+        const payload = { ...t }
+        const record = await pb.collection('templates').update(t.id, payload)
         update({
           templates: globalState.templates.map((x) => (x.id === t.id ? (record as any) : x)),
         })
