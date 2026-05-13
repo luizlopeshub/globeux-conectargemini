@@ -11,6 +11,8 @@ import {
   Calculator,
   Database,
   Plus,
+  Calendar,
+  Star,
 } from 'lucide-react'
 
 export function Toolbox({
@@ -28,6 +30,8 @@ export function Toolbox({
     { type: 'radio', icon: ListFilter, label: 'Seleção Única' },
     { type: 'checkbox', icon: SquareCheckBig, label: 'Múltipla Escolha' },
     { type: 'lookup', icon: Database, label: 'Seleção de Cadastro' },
+    { type: 'date', icon: Calendar, label: 'Data' },
+    { type: 'rating', icon: Star, label: 'Avaliação' },
     { type: 'gps', icon: MapPin, label: 'Localização GPS' },
     { type: 'camera', icon: Camera, label: 'Foto / Câmera' },
     { type: 'signature', icon: Signature, label: 'Assinatura' },

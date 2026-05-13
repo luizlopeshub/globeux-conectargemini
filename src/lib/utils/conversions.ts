@@ -1,68 +1,60 @@
-export type UnitCategory = 'mass' | 'length' | 'temp'
-
-export const UNITS: Record<UnitCategory, { id: string; label: string }[]> = {
+export const UNITS = {
   mass: [
-    { id: 'mg', label: 'Miligramas (mg)' },
-    { id: 'g', label: 'Gramas (g)' },
-    { id: 'kg', label: 'Quilogramas (kg)' },
-    { id: 'ton', label: 'Toneladas (ton)' },
-    { id: 'lb', label: 'Libras (lb)' },
-    { id: 'oz', label: 'Onças (oz)' },
+    { id: 'kg', label: 'kg' },
+    { id: 'g', label: 'g' },
+    { id: 'lb', label: 'lb' },
+    { id: 'oz', label: 'oz' },
   ],
   length: [
-    { id: 'mm', label: 'Milímetros (mm)' },
-    { id: 'cm', label: 'Centímetros (cm)' },
-    { id: 'm', label: 'Metros (m)' },
-    { id: 'km', label: 'Quilômetros (km)' },
-    { id: 'in', label: 'Polegadas (in)' },
-    { id: 'ft', label: 'Pés (ft)' },
+    { id: 'm', label: 'm' },
+    { id: 'cm', label: 'cm' },
+    { id: 'mm', label: 'mm' },
+    { id: 'km', label: 'km' },
+    { id: 'in', label: 'in' },
+    { id: 'ft', label: 'ft' },
+    { id: 'yd', label: 'yd' },
+    { id: 'mi', label: 'mi' },
   ],
   temp: [
-    { id: 'C', label: 'Celsius (°C)' },
-    { id: 'F', label: 'Fahrenheit (°F)' },
+    { id: 'C', label: '°C' },
+    { id: 'F', label: '°F' },
+    { id: 'K', label: 'K' },
+  ],
+  volume: [
+    { id: 'm3', label: 'm³ (Metros Cúbicos)' },
+    { id: 'l', label: 'L' },
+    { id: 'ml', label: 'ml' },
+    { id: 'gal', label: 'gal' },
   ],
 }
 
-const MASS_FACTORS: Record<string, number> = {
-  mg: 0.001,
-  g: 1,
-  kg: 1000,
-  ton: 1000000,
-  lb: 453.59237,
-  oz: 28.34952,
-}
-
-const LENGTH_FACTORS: Record<string, number> = {
-  mm: 0.001,
-  cm: 0.01,
-  m: 1,
-  km: 1000,
-  in: 0.0254,
-  ft: 0.3048,
+const factors: Record<string, Record<string, number>> = {
+  mass: { kg: 1, g: 0.001, lb: 0.453592, oz: 0.0283495 },
+  length: { m: 1, cm: 0.01, mm: 0.001, km: 1000, in: 0.0254, ft: 0.3048, yd: 0.9144, mi: 1609.34 },
+  volume: { m3: 1, l: 0.001, ml: 0.000001, gal: 0.00378541 },
 }
 
 export function convertUnit(
   value: number,
-  category: UnitCategory,
-  from: string,
-  to: string,
+  category: keyof typeof UNITS,
+  source: string,
+  target: string,
 ): number {
-  if (value === undefined || value === null || isNaN(value) || from === to) return value
-
-  if (category === 'mass') {
-    const baseGrams = value * (MASS_FACTORS[from] || 1)
-    return baseGrams / (MASS_FACTORS[to] || 1)
-  }
-
-  if (category === 'length') {
-    const baseMeters = value * (LENGTH_FACTORS[from] || 1)
-    return baseMeters / (LENGTH_FACTORS[to] || 1)
-  }
+  if (source === target) return value
 
   if (category === 'temp') {
-    if (from === 'C' && to === 'F') return (value * 9) / 5 + 32
-    if (from === 'F' && to === 'C') return ((value - 32) * 5) / 9
+    let c = value
+    if (source === 'F') c = ((value - 32) * 5) / 9
+    if (source === 'K') c = value - 273.15
+
+    if (target === 'C') return c
+    if (target === 'F') return (c * 9) / 5 + 32
+    if (target === 'K') return c + 273.15
   }
 
-  return value
+  const catFactors = factors[category]
+  if (!catFactors || !catFactors[source] || !catFactors[target]) return value
+
+  const inBase = value * catFactors[source]
+  return inBase / catFactors[target]
 }

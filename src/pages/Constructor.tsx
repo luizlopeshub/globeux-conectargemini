@@ -472,11 +472,15 @@ export default function Constructor() {
       }
     }
 
+    let defaultLabel = `Novo Campo (${type})`
+    if (type === 'date') defaultLabel = 'Nova Data'
+    if (type === 'rating') defaultLabel = 'Nova Avaliação'
+
     const newField: FormField = {
       id: `f_${generateId().substring(0, 6)}`,
       blockId: blockIdToUse,
       type,
-      label: `Novo Campo (${type})`,
+      label: defaultLabel,
       required: false,
     }
 

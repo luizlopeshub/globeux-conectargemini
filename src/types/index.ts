@@ -49,6 +49,8 @@ export type FieldType =
   | 'signature'
   | 'calculation'
   | 'lookup'
+  | 'date'
+  | 'rating'
 
 export interface FormField {
   id: string
@@ -78,9 +80,10 @@ export interface FormField {
   hardValidationMessage?: string
   lookupSource?: string
   formula?: string
-  unit_category?: 'mass' | 'length' | 'temp'
+  unit_category?: 'mass' | 'length' | 'temp' | 'volume'
   unit_source?: string
   unit_target?: string
+  dateFormat?: 'DD/MM/YYYY' | 'MM/YYYY'
   triggers?: Array<'require_photo' | 'create_action_plan' | 'send_notification'>
   dataSourceType?: 'internal' | 'external_api' | 'master_data'
   apiUrl?: string

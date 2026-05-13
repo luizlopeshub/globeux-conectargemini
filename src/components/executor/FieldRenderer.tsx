@@ -5,12 +5,30 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Camera, MapPin, Edit3, Loader2, AlertTriangle, Calculator } from 'lucide-react'
+import {
+  Camera,
+  MapPin,
+  Edit3,
+  Loader2,
+  AlertTriangle,
+  Calculator,
+  Calendar as CalendarIcon,
+  Angry,
+  Frown,
+  Meh,
+  Smile,
+  Laugh,
+} from 'lucide-react'
 import { useMemo, useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { SmartLookup } from '@/components/SmartLookup'
 import pb from '@/lib/pocketbase/client'
 import { convertUnit, UNITS } from '@/lib/utils/conversions'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Calendar } from '@/components/ui/calendar'
+import { format } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
+import { cn } from '@/lib/utils'
 
 interface Props {
   field: FormField
@@ -545,6 +563,89 @@ export function FieldRenderer({
             <span className="text-muted-foreground">Toque para Assinar</span>
           </Button>
         )
+      case 'date': {
+        const isMonthYear = field.dateFormat === 'MM/YYYY'
+        const dateObj = value ? new Date(value) : undefined
+
+        return (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  'w-full h-12 justify-start text-left font-normal bg-white',
+                  !value && 'text-muted-foreground',
+                  error && 'border-destructive',
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {value ? (
+                  format(dateObj!, isMonthYear ? 'MM/yyyy' : 'dd/MM/yyyy')
+                ) : (
+                  <span>Selecione uma data</span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={dateObj}
+                onSelect={(d) => onChange(d ? d.toISOString() : null)}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+        )
+      }
+      case 'rating': {
+        const ratings = [
+          { val: 1, icon: Angry, color: 'text-red-600', activeBg: 'bg-red-50 border-red-200' },
+          { val: 2, icon: Frown, color: 'text-red-400', activeBg: 'bg-red-50 border-red-100' },
+          { val: 3, icon: Meh, color: 'text-amber-500', activeBg: 'bg-amber-50 border-amber-200' },
+          {
+            val: 4,
+            icon: Smile,
+            color: 'text-emerald-400',
+            activeBg: 'bg-emerald-50 border-emerald-100',
+          },
+          {
+            val: 5,
+            icon: Laugh,
+            color: 'text-emerald-600',
+            activeBg: 'bg-emerald-50 border-emerald-200',
+          },
+        ]
+
+        return (
+          <div className="flex justify-between items-center gap-2">
+            {ratings.map((r) => (
+              <button
+                key={r.val}
+                type="button"
+                onClick={() => onChange(r.val)}
+                className={cn(
+                  'flex-1 flex flex-col items-center justify-center p-3 rounded-lg border transition-all',
+                  value === r.val
+                    ? cn(r.activeBg, 'ring-1 ring-primary/20')
+                    : 'bg-white border-input hover:bg-muted',
+                )}
+              >
+                <r.icon
+                  className={cn('h-8 w-8 mb-1', value === r.val ? r.color : 'text-slate-300')}
+                />
+                <span
+                  className={cn(
+                    'text-xs font-medium',
+                    value === r.val ? r.color : 'text-muted-foreground',
+                  )}
+                >
+                  {r.val}
+                </span>
+              </button>
+            ))}
+          </div>
+        )
+      }
       case 'calculation': {
         const targetUnitLabel =
           field.unit_category && field.unit_target

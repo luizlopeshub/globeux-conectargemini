@@ -195,6 +195,8 @@ export function PropertiesPanel({
                   <SelectItem value="signature">Assinatura</SelectItem>
                   <SelectItem value="calculation">Cálculo</SelectItem>
                   <SelectItem value="lookup">Busca (Lookup)</SelectItem>
+                  <SelectItem value="date">Data</SelectItem>
+                  <SelectItem value="rating">Avaliação (Rating)</SelectItem>
                 </SelectContent>
               </Select>
               {hasResponses && (
@@ -253,6 +255,26 @@ export function PropertiesPanel({
                 onCheckedChange={(c) => handleUpdateField(activeField.id, { required: c })}
               />
             </div>
+
+            {activeField.type === 'date' && (
+              <div className="space-y-2">
+                <Label>Formato da Data</Label>
+                <Select
+                  value={activeField.dateFormat || 'DD/MM/YYYY'}
+                  onValueChange={(val: any) =>
+                    handleUpdateField(activeField.id, { dateFormat: val })
+                  }
+                >
+                  <SelectTrigger className="bg-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="DD/MM/YYYY">DD/MM/AAAA</SelectItem>
+                    <SelectItem value="MM/YYYY">MM/AAAA</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {['radio', 'checkbox', 'select'].includes(activeField.type) && (
               <div className="space-y-3">
@@ -585,6 +607,7 @@ export function PropertiesPanel({
                       <SelectItem value="mass">Massa / Peso</SelectItem>
                       <SelectItem value="length">Comprimento / Distância</SelectItem>
                       <SelectItem value="temp">Temperatura</SelectItem>
+                      <SelectItem value="volume">Volume</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
