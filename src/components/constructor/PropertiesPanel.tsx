@@ -256,6 +256,29 @@ export function PropertiesPanel({
               />
             </div>
 
+            {(activeField.type === 'text' || activeField.type === 'number') && (
+              <div className="space-y-2">
+                <Label>Máscara de Entrada</Label>
+                <Select
+                  value={activeField.mask || 'none'}
+                  onValueChange={(val: any) =>
+                    handleUpdateField(activeField.id, { mask: val === 'none' ? undefined : val })
+                  }
+                >
+                  <SelectTrigger className="bg-white">
+                    <SelectValue placeholder="Nenhuma" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhuma</SelectItem>
+                    <SelectItem value="cep">CEP (00000-000)</SelectItem>
+                    <SelectItem value="cpf">CPF (000.000.000-00)</SelectItem>
+                    <SelectItem value="cnpj">CNPJ (00.000.000/0000-00)</SelectItem>
+                    <SelectItem value="plate">Placa de Veículo</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             {activeField.type === 'date' && (
               <div className="space-y-2">
                 <Label>Formato da Data</Label>

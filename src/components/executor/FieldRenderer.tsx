@@ -1,8 +1,6 @@
 import { FormField, LogicCondition } from '@/types'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -18,7 +16,16 @@ import {
   Meh,
   Smile,
   Laugh,
+  Check,
+  ChevronsUpDown,
 } from 'lucide-react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { useMemo, useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { SmartLookup } from '@/components/SmartLookup'
@@ -403,22 +410,56 @@ export function FieldRenderer({
   const renderInput = () => {
     switch (field.type) {
       case 'text':
+      case 'number': {
+        const isMasked = field.mask && field.mask !== 'none'
+        const inputType = isMasked ? 'text' : field.type === 'number' ? 'number' : 'text'
+
         return (
           <Input
+            type={inputType}
             value={value || ''}
-            onChange={(e) => onChange(e.target.value)}
+            onChange={(e) => {
+              if (isMasked) {
+                let cleaned = e.target.value
+                switch (field.mask) {
+                  case 'cep':
+                    cleaned = cleaned.replace(/\D/g, '').slice(0, 8)
+                    cleaned = cleaned.replace(/^(\d{5})(\d)/, '$1-$2')
+                    break
+                  case 'cpf':
+                    cleaned = cleaned.replace(/\D/g, '').slice(0, 11)
+                    cleaned = cleaned
+                      .replace(/(\d{3})(\d)/, '$1.$2')
+                      .replace(/(\d{3})(\d)/, '$1.$2')
+                      .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
+                    break
+                  case 'cnpj':
+                    cleaned = cleaned.replace(/\D/g, '').slice(0, 14)
+                    cleaned = cleaned
+                      .replace(/(\d{2})(\d)/, '$1.$2')
+                      .replace(/(\d{3})(\d)/, '$1.$2')
+                      .replace(/(\d{3})(\d)/, '$1/$2')
+                      .replace(/(\d{4})(\d{1,2})$/, '$1-$2')
+                    break
+                  case 'plate':
+                    cleaned = cleaned
+                      .replace(/[^a-zA-Z0-9]/g, '')
+                      .toUpperCase()
+                      .slice(0, 7)
+                    if (cleaned.length > 3) {
+                      cleaned = `${cleaned.slice(0, 3)}-${cleaned.slice(3)}`
+                    }
+                    break
+                }
+                onChange(cleaned)
+              } else {
+                onChange(e.target.value)
+              }
+            }}
             className={`h-12 bg-white ${error ? 'border-destructive' : ''}`}
           />
         )
-      case 'number':
-        return (
-          <Input
-            type="number"
-            value={value || ''}
-            onChange={(e) => onChange(e.target.value)}
-            className={`h-12 bg-white ${error ? 'border-destructive' : ''}`}
-          />
-        )
+      }
       case 'lookup': {
         const explicitSource = field.dataSourceType || field.settings?.source
         const dataSourceType = explicitSource || (field.lookupSource ? 'internal' : 'master_data')
@@ -438,43 +479,79 @@ export function FieldRenderer({
       }
       case 'radio':
         return (
-          <RadioGroup value={value} onValueChange={onChange} className="flex flex-col gap-3">
-            {options.map((opt) => (
-              <div
-                key={opt}
-                className="flex items-center space-x-3 bg-white p-3 rounded-md border border-input has-[:checked]:border-primary has-[:checked]:bg-primary/5 cursor-pointer"
-              >
-                <RadioGroupItem value={opt} id={`${field.id}-${opt}`} />
-                <Label htmlFor={`${field.id}-${opt}`} className="flex-1 cursor-pointer">
+          <Select value={value || ''} onValueChange={onChange}>
+            <SelectTrigger
+              className={`h-12 bg-white text-base ${error ? 'border-destructive' : ''}`}
+            >
+              <SelectValue placeholder="Selecione uma opção..." />
+            </SelectTrigger>
+            <SelectContent>
+              {options.map((opt) => (
+                <SelectItem key={opt} value={opt}>
                   {opt}
-                </Label>
-              </div>
-            ))}
-          </RadioGroup>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         )
-      case 'checkbox':
+      case 'checkbox': {
+        const selectedValues = Array.isArray(value) ? value : []
         return (
-          <div className="flex flex-col gap-3">
-            {options.map((opt) => (
-              <div
-                key={opt}
-                className="flex items-center space-x-3 bg-white p-3 rounded-md border border-input has-[:checked]:border-primary has-[:checked]:bg-primary/5 cursor-pointer"
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                className={`w-full justify-between h-auto min-h-12 bg-white font-normal ${!selectedValues.length ? 'text-muted-foreground' : ''} ${error ? 'border-destructive' : ''}`}
               >
-                <Checkbox
-                  id={`${field.id}-${opt}`}
-                  checked={Array.isArray(value) && value.includes(opt)}
-                  onCheckedChange={(c) => {
-                    const current = Array.isArray(value) ? value : []
-                    onChange(c ? [...current, opt] : current.filter((v) => v !== opt))
-                  }}
-                />
-                <Label htmlFor={`${field.id}-${opt}`} className="flex-1 cursor-pointer">
-                  {opt}
-                </Label>
+                {selectedValues.length > 0 ? (
+                  <div className="flex flex-wrap gap-1 py-1 -ml-1">
+                    {selectedValues.map((v) => (
+                      <span
+                        key={v}
+                        className="bg-slate-100 text-slate-800 text-xs px-2 py-1 rounded border border-slate-200 ml-1 mb-1"
+                      >
+                        {v}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-base">Selecione as opções...</span>
+                )}
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-1" align="start">
+              <div className="flex flex-col max-h-60 overflow-y-auto">
+                {options.map((opt) => {
+                  const isChecked = selectedValues.includes(opt)
+                  return (
+                    <div
+                      key={opt}
+                      className="flex items-center space-x-3 p-3 rounded-md hover:bg-slate-50 cursor-pointer"
+                      onClick={() => {
+                        const current = [...selectedValues]
+                        if (isChecked) {
+                          onChange(current.filter((v) => v !== opt))
+                        } else {
+                          onChange([...current, opt])
+                        }
+                      }}
+                    >
+                      <div
+                        className={`flex h-5 w-5 items-center justify-center rounded border ${isChecked ? 'bg-primary border-primary text-primary-foreground' : 'border-input bg-transparent'}`}
+                      >
+                        {isChecked && <Check className="h-3.5 w-3.5" />}
+                      </div>
+                      <span className="text-sm flex-1">{opt}</span>
+                    </div>
+                  )
+                })}
               </div>
-            ))}
-          </div>
+            </PopoverContent>
+          </Popover>
         )
+      }
       case 'gps':
         return value ? (
           <div className="bg-emerald-50 text-emerald-700 p-4 rounded-md border border-emerald-200 flex items-center gap-2 font-mono text-sm">

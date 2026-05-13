@@ -52,8 +52,11 @@ export type FieldType =
   | 'date'
   | 'rating'
 
+export type InputMaskType = 'none' | 'cep' | 'cpf' | 'cnpj' | 'plate'
+
 export interface FormField {
   id: string
+  mask?: InputMaskType
   blockId: string
   type: FieldType
   label: string
