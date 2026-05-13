@@ -120,6 +120,14 @@ const AppContent = () => {
             }
           />
           <Route
+            path="/builder/:id"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <Constructor />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/users"
             element={
               <ProtectedRoute allowedRoles={['admin']}>

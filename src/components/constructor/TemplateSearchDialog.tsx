@@ -1,18 +1,27 @@
-import { Template, Subject } from '@/types'
+import { Template, Subject, Audit } from '@/types'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { useState, useMemo } from 'react'
-import { Search, FileText, Layers } from 'lucide-react'
+import { Search, FileText, Layers, AlertCircle } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 
 interface Props {
   open: boolean
   onOpenChange: (open: boolean) => void
   templates: Template[]
   subjects: Subject[]
+  audits: Audit[]
   onSelect: (t: Template | 'new') => void
 }
 
-export function TemplateSearchDialog({ open, onOpenChange, templates, subjects, onSelect }: Props) {
+export function TemplateSearchDialog({
+  open,
+  onOpenChange,
+  templates,
+  subjects,
+  audits,
+  onSelect,
+}: Props) {
   const [search, setSearch] = useState('')
 
   const filtered = useMemo(() => {
@@ -62,28 +71,39 @@ export function TemplateSearchDialog({ open, onOpenChange, templates, subjects, 
                 const subj = subjects.find((s) => s.id === t.subject)
                 const d = t.updatedAt || t.createdAt || (t as any).updated || (t as any).created
                 const dateStr = d ? new Date(d).toLocaleDateString('pt-BR') : ''
+                const hasResponses = audits.some((a) => a.templateId === t.id)
 
                 return (
                   <div
                     key={t.id}
                     onClick={() => onSelect(t)}
-                    className="p-3 hover:bg-background rounded-xl cursor-pointer flex items-center gap-4 transition-all border border-transparent hover:border-border hover:shadow-sm"
+                    className="p-3 hover:bg-background rounded-xl cursor-pointer flex items-center justify-between gap-4 transition-all border border-transparent hover:border-border hover:shadow-sm"
                   >
-                    <div className="h-10 w-10 bg-muted rounded-lg flex items-center justify-center shrink-0">
-                      <FileText className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-foreground truncate">{t.name}</div>
-                      <div className="text-xs text-muted-foreground truncate">
-                        {subj?.name || 'Sem assunto'} {dateStr ? `• Atualizado em ${dateStr}` : ''}
+                    <div className="flex items-center gap-4 min-w-0 flex-1">
+                      <div className="h-10 w-10 bg-muted rounded-lg flex items-center justify-center shrink-0">
+                        <FileText className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-foreground truncate">{t.name}</div>
+                        <div className="text-xs text-muted-foreground truncate">
+                          {subj?.name || 'Sem assunto'}{' '}
+                          {dateStr ? `• Atualizado em ${dateStr}` : ''}
+                        </div>
                       </div>
                     </div>
+                    {hasResponses && (
+                      <Badge variant="secondary" className="shrink-0 gap-1 text-xs">
+                        <AlertCircle className="h-3 w-3" />
+                        Em Uso
+                      </Badge>
+                    )}
                   </div>
                 )
               })
             ) : (
               <div className="text-center p-12 text-muted-foreground border border-dashed rounded-xl bg-background/50">
                 <p>Nenhum checklist encontrado com a busca "{search}".</p>
+                <p className="text-sm mt-1">No templates found.</p>
               </div>
             )}
           </div>

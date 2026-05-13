@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
 import { generateId } from '@/lib/utils'
 import useAppStore from '@/stores/useAppStore'
 import { FormField, FormBlock, FieldType, Template, ActiveItem, Subject } from '@/types'
@@ -51,10 +52,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 export default function Constructor() {
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+
   const {
     templates,
+    audits,
     addTemplate,
     updateTemplate,
     currentUser,
@@ -62,7 +77,6 @@ export default function Constructor() {
     setBuilderSelectedBlockId,
   } = useAppStore()
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null)
-  const [hasLoadedInitial, setHasLoadedInitial] = useState(false)
 
   const [templateName, setTemplateName] = useState('')
   const [nameError, setNameError] = useState<string | null>(null)
@@ -90,6 +104,11 @@ export default function Constructor() {
 
   const [searchOpen, setSearchOpen] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
+
+  const [isDirty, setIsDirty] = useState(false)
+  const [showDirtyDialog, setShowDirtyDialog] = useState(false)
+  const [pendingTemplateId, setPendingTemplateId] = useState<string | 'new' | null>(null)
+  const originalStateRef = useRef<any>(null)
 
   // Drag & Drop State
   const [draggedItem, setDraggedItem] = useState<{ id: string; type: 'block' | 'field' } | null>(
@@ -205,15 +224,51 @@ export default function Constructor() {
   }, [])
 
   useEffect(() => {
-    if (!hasLoadedInitial) {
-      createNewTemplate()
-      setHasLoadedInitial(true)
+    if (id) {
+      const t = templates.find((tmp) => tmp.id === id)
+      if (t) {
+        if (editingTemplateId !== t.id) {
+          loadTemplate(t)
+        }
+      }
+    } else {
+      if (editingTemplateId !== null || !originalStateRef.current) {
+        createNewTemplate()
+      }
     }
-  }, [hasLoadedInitial])
+  }, [id, templates])
 
   useEffect(() => {
     if (nameError) setNameError(null)
   }, [templateName])
+
+  // Track isDirty
+  useEffect(() => {
+    if (!originalStateRef.current) return
+    const currentState = {
+      templateName,
+      subject,
+      description,
+      attachments,
+      blocks,
+      fields,
+      assignedUsers,
+      assignedDepartments,
+      pdfSettings,
+    }
+    const isDifferent = JSON.stringify(currentState) !== originalStateRef.current
+    setIsDirty(isDifferent)
+  }, [
+    templateName,
+    subject,
+    description,
+    attachments,
+    blocks,
+    fields,
+    assignedUsers,
+    assignedDepartments,
+    pdfSettings,
+  ])
 
   if (currentUser?.role !== 'admin') {
     return (
@@ -228,18 +283,28 @@ export default function Constructor() {
     setBuilderSelectedBlockId(blockId)
   }
 
+  const saveOriginalState = (stateOverrides?: any) => {
+    const currentState = {
+      templateName,
+      subject,
+      description,
+      attachments,
+      blocks,
+      fields,
+      assignedUsers,
+      assignedDepartments,
+      pdfSettings,
+      ...stateOverrides,
+    }
+    originalStateRef.current = JSON.stringify(currentState)
+    setIsDirty(false)
+  }
+
   const loadTemplate = async (t: Template) => {
     setEditingTemplateId(t.id)
 
-    try {
-      const records = await pb.collection('responses').getList(1, 1, {
-        filter: `task_id.template_id = "${t.id}"`,
-      })
-      setHasResponses(records.totalItems > 0)
-    } catch (err) {
-      console.error(err)
-      setHasResponses(false)
-    }
+    const responsesExist = audits.some((a) => a.templateId === t.id)
+    setHasResponses(responsesExist)
 
     setTemplateName(t.name)
     setNameError(null)
@@ -257,19 +322,32 @@ export default function Constructor() {
     setFields(loadedFields)
     setAssignedUsers(t.assignedUsers || [])
     setAssignedDepartments(t.assignedDepartments || [])
-    setPdfSettings(
-      t.pdf_settings || {
-        primary_color: '#0f172a',
-        layout_mode: 'standard',
-        show_photos: true,
-        logo_url: '',
-        header_text: '',
-        footer_text: '',
-      },
-    )
+
+    const loadedPdfSettings = t.pdf_settings || {
+      primary_color: '#0f172a',
+      layout_mode: 'standard',
+      show_photos: true,
+      logo_url: '',
+      header_text: '',
+      footer_text: '',
+    }
+    setPdfSettings(loadedPdfSettings)
+
     setActiveItem(null)
     setBuilderSelectedBlockId(loadedBlocks.length > 0 ? loadedBlocks[0].id : null)
     setMainTab('campos_blocos')
+
+    saveOriginalState({
+      templateName: t.name,
+      subject: t.subject || '',
+      description: t.description || '',
+      attachments: t.attachments || [],
+      blocks: loadedBlocks,
+      fields: loadedFields,
+      assignedUsers: t.assignedUsers || [],
+      assignedDepartments: t.assignedDepartments || [],
+      pdfSettings: loadedPdfSettings,
+    })
   }
 
   const createNewTemplate = () => {
@@ -282,21 +360,44 @@ export default function Constructor() {
     setAttachments([])
     setBlocks([])
     setFields([])
-    setPdfSettings({
+    const initialPdfSettings = {
       primary_color: '#0f172a',
       layout_mode: 'standard',
       show_photos: true,
       logo_url: '',
       header_text: '',
       footer_text: '',
-    })
+    }
+    setPdfSettings(initialPdfSettings)
     setActiveItem(null)
     setBuilderSelectedBlockId(null)
     setMainTab('campos_blocos')
+
+    saveOriginalState({
+      templateName: '',
+      subject: '',
+      description: '',
+      attachments: [],
+      blocks: [],
+      fields: [],
+      assignedUsers: [],
+      assignedDepartments: [],
+      pdfSettings: initialPdfSettings,
+    })
+  }
+
+  const handleSelectTemplate = (val: string | 'new') => {
+    if (isDirty) {
+      setPendingTemplateId(val)
+      setShowDirtyDialog(true)
+    } else {
+      navigate(val === 'new' ? '/builder' : `/builder/${val}`)
+    }
   }
 
   const handleClone = () => {
     const copyName = `${templateName || 'Checklist'} - Cópia`
+    navigate('/builder')
     setEditingTemplateId(null)
     setTemplateName(copyName)
 
@@ -453,6 +554,7 @@ export default function Constructor() {
           await updateTemplate({ ...existing, ...tmplData })
         }
         toast({ title: 'Template atualizado com sucesso' })
+        saveOriginalState(tmplData)
       } else {
         const created = await pb.collection('templates').create(tmplData)
         await addTemplate({
@@ -462,6 +564,8 @@ export default function Constructor() {
         } as Template)
         setEditingTemplateId(created.id)
         toast({ title: 'Template criado com sucesso' })
+        saveOriginalState(tmplData)
+        navigate(`/builder/${created.id}`)
       }
     } catch (error) {
       console.error(error)
@@ -512,6 +616,7 @@ export default function Constructor() {
                 ? templates.find((t) => t.id === editingTemplateId)?.name || 'Desconhecido'
                 : 'Novo Template'}
             </span>
+            {isDirty && <span className="ml-1 text-primary text-xl leading-none">*</span>}
           </Button>
 
           <div className="hidden sm:block h-5 w-px bg-border" />
@@ -1089,12 +1194,42 @@ export default function Constructor() {
         onOpenChange={setSearchOpen}
         templates={templates}
         subjects={subjectsList}
+        audits={audits}
         onSelect={(val) => {
-          if (val === 'new') createNewTemplate()
-          else loadTemplate(val)
+          handleSelectTemplate(val === 'new' ? 'new' : val.id)
           setSearchOpen(false)
         }}
       />
+
+      <AlertDialog open={showDirtyDialog} onOpenChange={setShowDirtyDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Alterações não salvas</AlertDialogTitle>
+            <AlertDialogDescription>
+              Você tem alterações não salvas neste template. Se continuar, as alterações serão
+              perdidas. Deseja continuar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingTemplateId(null)}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowDirtyDialog(false)
+                if (pendingTemplateId) {
+                  navigate(
+                    pendingTemplateId === 'new' ? '/builder' : `/builder/${pendingTemplateId}`,
+                  )
+                  setPendingTemplateId(null)
+                }
+              }}
+            >
+              Continuar sem salvar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <TemplatePreview
         open={previewOpen}
