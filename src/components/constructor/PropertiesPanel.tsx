@@ -1,4 +1,4 @@
-import { FormField, FormBlock, ActiveItem } from '@/types'
+import { FormField, FormBlock, ActiveItem, FieldType } from '@/types'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
@@ -23,6 +23,7 @@ interface Props {
   blocks: FormBlock[]
   handleUpdateField: (id: string, updates: Partial<FormField>) => void
   handleUpdateBlock: (id: string, updates: Partial<FormBlock>) => void
+  hasResponses?: boolean
 }
 
 export function PropertiesPanel({
@@ -31,6 +32,7 @@ export function PropertiesPanel({
   blocks,
   handleUpdateField,
   handleUpdateBlock,
+  hasResponses,
 }: Props) {
   const { entityDefs } = useAppStore()
   const [masterEntities, setMasterEntities] = useState<any[]>([])
@@ -144,6 +146,51 @@ export function PropertiesPanel({
       <div className="space-y-4">
         {tab === 'geral' && (
           <div className="space-y-4 animate-in fade-in duration-200">
+            <div className="flex items-center justify-between p-4 border rounded-md bg-slate-50 shadow-sm mb-4">
+              <div>
+                <h4 className="font-medium text-sm text-primary">Campo Ativo</h4>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Desativar oculta o campo no preenchimento.
+                </p>
+              </div>
+              <Switch
+                checked={!activeField.disabled}
+                onCheckedChange={(c) => handleUpdateField(activeField.id, { disabled: !c })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tipo do Campo</Label>
+              <Select
+                value={activeField.type}
+                disabled={hasResponses}
+                onValueChange={(val) =>
+                  handleUpdateField(activeField.id, { type: val as FieldType })
+                }
+              >
+                <SelectTrigger className={`bg-white ${hasResponses ? 'opacity-70' : ''}`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="text">Texto Curto</SelectItem>
+                  <SelectItem value="number">Número</SelectItem>
+                  <SelectItem value="radio">Múltipla Escolha (Única)</SelectItem>
+                  <SelectItem value="checkbox">Caixas de Seleção (Múltipla)</SelectItem>
+                  <SelectItem value="gps">Localização (GPS)</SelectItem>
+                  <SelectItem value="camera">Foto / Câmera</SelectItem>
+                  <SelectItem value="signature">Assinatura</SelectItem>
+                  <SelectItem value="calculation">Cálculo</SelectItem>
+                  <SelectItem value="lookup">Busca (Lookup)</SelectItem>
+                </SelectContent>
+              </Select>
+              {hasResponses && (
+                <p className="text-[11px] text-amber-600 font-medium leading-tight">
+                  Este campo já possui dados coletados e seu tipo não pode ser alterado para evitar
+                  inconsistência.
+                </p>
+              )}
+            </div>
+
             <div className="space-y-2">
               <Label>Label da Pergunta</Label>
               <Input

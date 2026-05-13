@@ -10,6 +10,7 @@ import { toast } from '@/hooks/use-toast'
 import { Toolbox } from '@/components/constructor/Toolbox'
 import { SubjectSelect } from '@/components/SubjectSelect'
 import { getSubjects } from '@/services/subjects'
+import pb from '@/lib/pocketbase/client'
 import { PropertiesPanel } from '@/components/constructor/PropertiesPanel'
 import { ConfigPanel } from '@/components/constructor/ConfigPanel'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -35,6 +36,8 @@ import {
   X,
   Copy,
   Eye,
+  EyeOff,
+  Loader2,
 } from 'lucide-react'
 import { TemplateSearchDialog } from '@/components/constructor/TemplateSearchDialog'
 import { TemplatePreview } from '@/components/constructor/TemplatePreview'
@@ -96,6 +99,9 @@ export default function Constructor() {
     id: string
     type: 'block' | 'field' | 'block_content'
   } | null>(null)
+
+  const [hasResponses, setHasResponses] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
 
   const handleReorderBlocks = (sourceId: string, targetId: string) => {
     if (sourceId === targetId) return
@@ -222,8 +228,19 @@ export default function Constructor() {
     setBuilderSelectedBlockId(blockId)
   }
 
-  const loadTemplate = (t: Template) => {
+  const loadTemplate = async (t: Template) => {
     setEditingTemplateId(t.id)
+
+    try {
+      const records = await pb.collection('responses').getList(1, 1, {
+        filter: `task_id.template_id = "${t.id}"`,
+      })
+      setHasResponses(records.totalItems > 0)
+    } catch (err) {
+      console.error(err)
+      setHasResponses(false)
+    }
+
     setTemplateName(t.name)
     setNameError(null)
     setSubject(t.subject || '')
@@ -257,6 +274,7 @@ export default function Constructor() {
 
   const createNewTemplate = () => {
     setEditingTemplateId(null)
+    setHasResponses(false)
     setTemplateName('')
     setNameError(null)
     setSubject('')
@@ -409,36 +427,47 @@ export default function Constructor() {
       return toast({ title: 'Pelo menos 1 bloco é obrigatório', variant: 'destructive' })
     }
 
-    const tmplData = {
-      name: templateName.trim(),
-      subject,
-      description,
-      attachments,
-      blocks: JSON.parse(JSON.stringify(blocks)),
-      fields: JSON.parse(
-        JSON.stringify(fields, (key, value) => {
-          if (typeof value === 'number' && isNaN(value)) return null
-          return value
-        }),
-      ),
-      assignedUsers,
-      assignedDepartments,
-      pdf_settings: pdfSettings,
-    }
+    setIsSaving(true)
+    try {
+      const tmplData = {
+        name: templateName.trim(),
+        subject,
+        description,
+        attachments,
+        blocks: JSON.parse(JSON.stringify(blocks)),
+        fields: JSON.parse(
+          JSON.stringify(fields, (key, value) => {
+            if (typeof value === 'number' && isNaN(value)) return null
+            return value
+          }),
+        ),
+        assignedUsers,
+        assignedDepartments,
+        pdf_settings: pdfSettings,
+      }
 
-    if (editingTemplateId && !String(editingTemplateId).startsWith('tmpl_')) {
-      const existing = templates.find((t) => t.id === editingTemplateId)
-      if (existing) {
-        await updateTemplate({ ...existing, ...tmplData })
-      }
-    } else {
-      const created = await addTemplate({
-        createdAt: new Date().toISOString(),
-        ...tmplData,
-      })
-      if (created && created.id) {
+      if (editingTemplateId && !String(editingTemplateId).startsWith('tmpl_')) {
+        await pb.collection('templates').update(editingTemplateId, tmplData)
+        const existing = templates.find((t) => t.id === editingTemplateId)
+        if (existing) {
+          await updateTemplate({ ...existing, ...tmplData })
+        }
+        toast({ title: 'Template atualizado com sucesso' })
+      } else {
+        const created = await pb.collection('templates').create(tmplData)
+        await addTemplate({
+          ...tmplData,
+          id: created.id,
+          createdAt: created.created,
+        } as Template)
         setEditingTemplateId(created.id)
+        toast({ title: 'Template criado com sucesso' })
       }
+    } catch (error) {
+      console.error(error)
+      toast({ title: 'Erro ao salvar template', variant: 'destructive' })
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -505,12 +534,19 @@ export default function Constructor() {
             <Eye className="h-4 w-4" /> Visualizar
           </Button>
           {editingTemplateId && (
-            <Button variant="outline" onClick={handleClone} size="sm" className="gap-2 shadow-sm">
+            <Button
+              variant="outline"
+              onClick={handleClone}
+              size="sm"
+              className="gap-2 shadow-sm"
+              disabled={isSaving}
+            >
               <Copy className="h-4 w-4" /> Clonar
             </Button>
           )}
-          <Button onClick={handleSave} size="sm" className="gap-2 shadow-sm">
-            <Save className="h-4 w-4" /> Salvar
+          <Button onClick={handleSave} size="sm" className="gap-2 shadow-sm" disabled={isSaving}>
+            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}{' '}
+            Salvar
           </Button>
         </div>
       </header>
@@ -765,13 +801,22 @@ export default function Constructor() {
                                 <GripVertical className="h-4 w-4 text-muted-foreground/50 group-hover:text-muted-foreground" />
                               </div>
                               <div className="flex-1 p-3.5 min-w-0 flex flex-col justify-center">
-                                <div className="font-medium text-sm flex items-center gap-2 truncate">
+                                <div
+                                  className={`font-medium text-sm flex items-center gap-2 truncate ${f.disabled ? 'opacity-50' : ''}`}
+                                >
                                   {f.label}
                                   {f.required && (
                                     <span className="text-destructive font-bold">*</span>
                                   )}
+                                  {f.disabled && (
+                                    <Badge variant="outline" className="text-[10px] py-0 h-4">
+                                      Desativado
+                                    </Badge>
+                                  )}
                                 </div>
-                                <div className="text-[11px] font-medium text-muted-foreground uppercase mt-1 tracking-wider">
+                                <div
+                                  className={`text-[11px] font-medium text-muted-foreground uppercase mt-1 tracking-wider ${f.disabled ? 'opacity-50' : ''}`}
+                                >
                                   {f.type}
                                 </div>
                               </div>
@@ -794,13 +839,22 @@ export default function Constructor() {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  className={`h-8 w-8 ${f.disabled ? 'text-muted-foreground' : 'text-primary'} hover:bg-muted`}
                                   onClick={(e) => {
                                     e.stopPropagation()
-                                    setFields(fields.filter((x) => x.id !== f.id))
+                                    setFields(
+                                      fields.map((x) =>
+                                        x.id === f.id ? { ...x, disabled: !x.disabled } : x,
+                                      ),
+                                    )
                                   }}
+                                  title={f.disabled ? 'Ativar Campo' : 'Desativar Campo'}
                                 >
-                                  <Trash2 className="h-4 w-4" />
+                                  {f.disabled ? (
+                                    <EyeOff className="h-4 w-4" />
+                                  ) : (
+                                    <Eye className="h-4 w-4" />
+                                  )}
                                 </Button>
                               </div>
                             </div>
@@ -1023,6 +1077,7 @@ export default function Constructor() {
                 handleUpdateBlock={(id, up) =>
                   setBlocks(blocks.map((b) => (b.id === id ? { ...b, ...up } : b)))
                 }
+                hasResponses={hasResponses}
               />
             )}
           </div>

@@ -57,6 +57,7 @@ export interface FormField {
   label: string
   options?: string
   required?: boolean
+  disabled?: boolean
   alwaysVisible?: boolean
   /** @deprecated Use logicRules instead */
   relatedFieldId?: string

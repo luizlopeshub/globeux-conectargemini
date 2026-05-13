@@ -96,6 +96,7 @@ export default function Executor() {
   const hardValidationErrors = useMemo(() => {
     const errors: Record<string, string> = {}
     templateFields.forEach((f) => {
+      if (f.disabled) return
       if (
         f.type === 'number' &&
         f.hardValidation &&
@@ -129,7 +130,7 @@ export default function Executor() {
     }
 
     templateFields.forEach((f) => {
-      if (!f.logicRules) return
+      if (f.disabled || !f.logicRules) return
       f.logicRules.forEach((rule) => {
         if (rule.action === 'SHOW_FIELD' && rule.targetId) {
           state.shownTargets.add(rule.targetId)
@@ -197,6 +198,7 @@ export default function Executor() {
 
   const hasMissingRequiredAll = useMemo(() => {
     return templateFields.some((f) => {
+      if (f.disabled) return false
       const blockIsVisible = visibleBlocks.some((b) => b.id === f.blockId)
       if (!blockIsVisible) return false
 
@@ -225,6 +227,7 @@ export default function Executor() {
   const currentFields = templateFields.filter((f) => f.blockId === currentBlock?.id)
 
   const visibleCurrentFields = currentFields.filter((f) => {
+    if (f.disabled) return false
     if (f.logicDependsOn && answers[f.logicDependsOn] !== f.logicValue) return false
     if (evaluatedRules.hidden.has(f.id)) return false
     if (evaluatedRules.shownTargets.has(f.id) && !evaluatedRules.shownActive.has(f.id)) return false
@@ -391,6 +394,7 @@ export default function Executor() {
               {visibleBlocks.map((block) => {
                 const blockFields = templateFields.filter((f) => f.blockId === block.id)
                 const visibleFields = blockFields.filter((f) => {
+                  if (f.disabled) return false
                   if (f.logicDependsOn && answers[f.logicDependsOn] !== f.logicValue) return false
                   if (evaluatedRules.hidden.has(f.id)) return false
                   if (
