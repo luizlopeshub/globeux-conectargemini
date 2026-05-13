@@ -54,6 +54,7 @@ export function PropertiesPanel({
       const timer = setTimeout(() => {
         if (labelInputRef.current) {
           labelInputRef.current.focus()
+          labelInputRef.current.select()
         }
       }, 50)
       return () => clearTimeout(timer)
@@ -210,9 +211,10 @@ export function PropertiesPanel({
                 ref={labelInputRef}
                 key={`label-${activeField.id}`}
                 autoFocus
-                placeholder="Ex: Nome do Motorista"
+                placeholder="Digite o nome do campo..."
                 value={activeField.label ?? ''}
                 onChange={(e) => handleUpdateField(activeField.id, { label: e.target.value })}
+                onFocus={(e) => e.target.select()}
               />
             </div>
             <div className="space-y-2">

@@ -136,7 +136,7 @@ export default function useAppStore() {
         id: 'f_' + Math.random().toString(36).substr(2, 9),
         blockId,
         type,
-        label: '',
+        label: 'Novo Campo',
         placeholder: '',
         instructions: '',
         required: false,
