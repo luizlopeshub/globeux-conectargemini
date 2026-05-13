@@ -144,10 +144,21 @@ export default function useAppStore() {
     },
 
     login: async (email: string, pass: string) => {
-      await withLoading(async () => {
+      update({ isLoading: true })
+      try {
         const authData = await pb.collection('users').authWithPassword(email, pass)
         update({ currentUser: authData.record as any, isAuthenticated: true })
-      }, 'Login efetuado com sucesso!')
+        toast({ title: 'Sucesso', description: 'Login efetuado com sucesso!' })
+      } catch (err: any) {
+        toast({
+          title: 'Erro',
+          description: 'E-mail ou senha incorretos. Verifique suas credenciais.',
+          variant: 'destructive',
+        })
+        throw err
+      } finally {
+        update({ isLoading: false })
+      }
     },
     logout: performLogout,
 
@@ -270,24 +281,6 @@ export default function useAppStore() {
       } finally {
         update({ isInitializing: false })
       }
-    },
-
-    addUser: async (u: Partial<User>) => {
-      await withLoading(async () => {
-        const record = await pb.collection('users').create({
-          ...u,
-          role: u.role || 'operator',
-          password: 'securepassword123',
-          passwordConfirm: 'securepassword123',
-        })
-        update({ users: [...globalState.users, record as any] })
-      }, 'Usuário adicionado com sucesso!')
-    },
-    updateUser: async (id: string, u: Partial<User>) => {
-      await withLoading(async () => {
-        const record = await pb.collection('users').update(id, u)
-        update({ users: globalState.users.map((x) => (x.id === id ? (record as any) : x)) })
-      }, 'Usuário atualizado com sucesso!')
     },
 
     addTemplate: async (t: Partial<Template>) => {

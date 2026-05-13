@@ -42,22 +42,22 @@ export default function Layout() {
   const role = currentUser?.role || 'operator'
 
   const navItems = [
-    { title: 'Início', path: '/', icon: Home, roles: ['admin', 'supervisor', 'operator'] },
+    { title: 'Início', path: '/', icon: Home, roles: ['admin', 'supervisor', 'operator', 'user'] },
     { title: 'Agendamentos', path: '/schedules', icon: Calendar, roles: ['admin', 'supervisor'] },
     {
       title: 'Auditorias',
       path: '/logs',
       icon: ClipboardList,
-      roles: ['admin', 'supervisor', 'operator'],
+      roles: ['admin', 'supervisor', 'operator', 'user'],
     },
     {
       title: 'Relatórios',
       path: '/reports',
       icon: BarChart,
-      roles: ['admin', 'supervisor', 'operator'],
+      roles: ['admin', 'supervisor', 'operator', 'user'],
     },
     { title: 'Construtor', path: '/builder', icon: Wrench, roles: ['admin'] },
-    { title: 'Usuários', path: '/users', icon: Users, roles: ['admin'] },
+    { title: 'Utilizadores', path: '/users', icon: Users, roles: ['admin'] },
   ]
 
   const settingsItems = [

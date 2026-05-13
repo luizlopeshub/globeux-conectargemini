@@ -39,6 +39,8 @@ export default function Users() {
   const { users, currentUser, fetchInitialData } = useAppStore()
   const [editingUser, setEditingUser] = useState<Partial<User> | null>(null)
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [password, setPassword] = useState('')
+  const [passwordConfirm, setPasswordConfirm] = useState('')
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [isLoading, setIsLoading] = useState(false)
 
@@ -66,6 +68,17 @@ export default function Users() {
       return toast({ title: 'Preencha os campos obrigatórios', variant: 'destructive' })
     }
 
+    if (!editingUser.id && (!password || !passwordConfirm)) {
+      return toast({
+        title: 'A senha é obrigatória para novos utilizadores',
+        variant: 'destructive',
+      })
+    }
+
+    if (password !== passwordConfirm) {
+      return toast({ title: 'As senhas não coincidem', variant: 'destructive' })
+    }
+
     setIsLoading(true)
     try {
       const dept = editingUser.department === 'Nenhum' ? '' : editingUser.department
@@ -73,8 +86,13 @@ export default function Users() {
       const formData = new FormData()
       formData.append('name', editingUser.name)
       formData.append('email', editingUser.email)
-      formData.append('role', editingUser.role || 'operator')
+      formData.append('role', editingUser.role || 'user')
       formData.append('department', dept || '')
+
+      if (password) {
+        formData.append('password', password)
+        formData.append('passwordConfirm', passwordConfirm)
+      }
 
       if (avatarFile) {
         formData.append('avatar', avatarFile)
@@ -84,16 +102,16 @@ export default function Users() {
 
       if (editingUser.id) {
         await pb.collection('users').update(editingUser.id, formData)
-        toast({ title: 'Usuário atualizado com sucesso' })
+        toast({ title: 'Utilizador atualizado com sucesso' })
       } else {
-        formData.append('password', 'Mudar@123')
-        formData.append('passwordConfirm', 'Mudar@123')
         await pb.collection('users').create(formData)
-        toast({ title: 'Usuário criado com sucesso' })
+        toast({ title: 'Utilizador criado com sucesso' })
       }
 
       setEditingUser(null)
       setAvatarFile(null)
+      setPassword('')
+      setPasswordConfirm('')
       if (fetchInitialData) await fetchInitialData()
     } catch (err) {
       const errors = extractFieldErrors(err)
@@ -120,14 +138,14 @@ export default function Users() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold">Gerenciamento de Usuários</h1>
+          <h1 className="text-2xl font-bold">Gerenciamento de Utilizadores</h1>
           <p className="text-muted-foreground">Controle de acesso (RBAC) e departamentos.</p>
         </div>
         <Button
-          onClick={() => setEditingUser({ role: 'operator', department: 'Nenhum' })}
+          onClick={() => setEditingUser({ role: 'user', department: 'Nenhum' })}
           className="gap-2"
         >
-          <Plus className="h-4 w-4" /> Novo Usuário
+          <Plus className="h-4 w-4" /> Novo Utilizador
         </Button>
       </div>
 
@@ -135,7 +153,7 @@ export default function Users() {
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
-              <TableHead>Usuário</TableHead>
+              <TableHead>Utilizador</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Nível de Acesso</TableHead>
               <TableHead>Departamento</TableHead>
@@ -143,6 +161,13 @@ export default function Users() {
             </TableRow>
           </TableHeader>
           <TableBody>
+            {users.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                  Nenhum utilizador encontrado
+                </TableCell>
+              </TableRow>
+            )}
             {users.map((user) => (
               <TableRow key={user.id}>
                 <TableCell className="flex items-center gap-3">
@@ -185,13 +210,15 @@ export default function Users() {
           if (!o) {
             setEditingUser(null)
             setAvatarFile(null)
+            setPassword('')
+            setPasswordConfirm('')
             setFieldErrors({})
           }
         }}
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{editingUser?.id ? 'Editar' : 'Novo'} Usuário</DialogTitle>
+            <DialogTitle>{editingUser?.id ? 'Editar' : 'Novo'} Utilizador</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -235,6 +262,32 @@ export default function Users() {
               />
               {fieldErrors.email && <p className="text-xs text-destructive">{fieldErrors.email}</p>}
             </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>
+                  Senha {!editingUser?.id && <span className="text-destructive">*</span>}
+                </Label>
+                <Input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder={editingUser?.id ? 'Deixe em branco para manter' : ''}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>
+                  Confirmar Senha {!editingUser?.id && <span className="text-destructive">*</span>}
+                </Label>
+                <Input
+                  type="password"
+                  value={passwordConfirm}
+                  onChange={(e) => setPasswordConfirm(e.target.value)}
+                  placeholder={editingUser?.id ? 'Deixe em branco para manter' : ''}
+                />
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Nível de Acesso</Label>
@@ -249,6 +302,7 @@ export default function Users() {
                     <SelectItem value="admin">Administrador</SelectItem>
                     <SelectItem value="supervisor">Supervisor</SelectItem>
                     <SelectItem value="operator">Operador</SelectItem>
+                    <SelectItem value="user">Utilizador</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -278,6 +332,8 @@ export default function Users() {
               onClick={() => {
                 setEditingUser(null)
                 setAvatarFile(null)
+                setPassword('')
+                setPasswordConfirm('')
                 setFieldErrors({})
               }}
               disabled={isLoading}
