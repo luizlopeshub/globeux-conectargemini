@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import pb from '@/lib/pocketbase/client'
 import useAppStore from '@/stores/useAppStore'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -47,15 +47,18 @@ export function PropertiesPanel({
   const activeField =
     activeItem?.type === 'field' ? fields.find((f) => f.id === activeItem.id) : undefined
 
+  const labelInputRef = useRef<HTMLInputElement>(null)
+
   useEffect(() => {
-    if (
-      activeField &&
-      (activeField.label === 'Novo Campo' || activeField.label === 'Nova Pergunta')
-    ) {
-      handleUpdateField(activeField.id, { label: '', instructions: '' } as any)
+    if (activeField?.id && tab === 'geral') {
+      const timer = setTimeout(() => {
+        if (labelInputRef.current) {
+          labelInputRef.current.focus()
+        }
+      }, 50)
+      return () => clearTimeout(timer)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeField?.id])
+  }, [activeField?.id, tab])
 
   useEffect(() => {
     if (
@@ -204,10 +207,11 @@ export function PropertiesPanel({
             <div className="space-y-2">
               <Label>Rótulo do Campo (Label)</Label>
               <Input
+                ref={labelInputRef}
                 key={`label-${activeField.id}`}
                 autoFocus
                 placeholder="Ex: Nome do Motorista"
-                value={activeField.label}
+                value={activeField.label || ''}
                 onChange={(e) => handleUpdateField(activeField.id, { label: e.target.value })}
               />
             </div>
