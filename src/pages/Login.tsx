@@ -27,6 +27,18 @@ export default function Login() {
     e.preventDefault()
     try {
       await login(email, password)
+      
+      if (pb.authStore.isValid && pb.authStore.record?.active === false) {
+        pb.authStore.clear()
+        toast({
+          title: 'Acesso Negado',
+          description: 'Este utilizador está inativo. Entre em contato com o administrador.',
+          variant: 'destructive',
+        })
+        window.location.reload()
+        return
+      }
+
       navigate('/')
     } catch (err) {
       // Error is handled by store with toast

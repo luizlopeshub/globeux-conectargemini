@@ -216,7 +216,7 @@ export default function Schedules() {
               </Label>
               <SmartLookup
                 options={users
-                  .filter((u) => u.role === 'operator' || u.role === 'supervisor')
+                  .filter((u) => (u.role === 'operator' || u.role === 'supervisor') && u.active !== false)
                   .map((u) => ({
                     value: u.id,
                     label: u.name,

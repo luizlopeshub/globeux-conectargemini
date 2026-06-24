@@ -36,6 +36,10 @@ const ProtectedRoute = ({
 
   if (!isAuthenticated) return <Navigate to="/login" state={{ from: location }} replace />
 
+  if (currentUser?.active === false) {
+    return <Unauthorized message="A sua conta foi inativada. Entre em contato com o administrador." />
+  }
+
   if (allowedRoles) {
     if (!currentUser || !allowedRoles.includes(currentUser.role)) {
       return <Unauthorized />
@@ -45,14 +49,14 @@ const ProtectedRoute = ({
   return <>{children}</>
 }
 
-const Unauthorized = () => {
+const Unauthorized = ({ message }: { message?: string }) => {
   useEffect(() => {
     toast({
       title: 'Acesso Negado',
-      description: 'Você não tem permissão para acessar esta página.',
+      description: message || 'Você não tem permissão para acessar esta página.',
       variant: 'destructive',
     })
-  }, [])
+  }, [message])
   return <Navigate to="/" replace />
 }
 

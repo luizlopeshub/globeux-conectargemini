@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import useAppStore from '@/stores/useAppStore'
 import {
   Table,
@@ -28,7 +28,8 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { toast } from '@/hooks/use-toast'
-import { Plus, Pencil, ShieldAlert, Loader2 } from 'lucide-react'
+import { Plus, Pencil, ShieldAlert, Loader2, Trash2 } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
 import { User } from '@/types'
 import pb from '@/lib/pocketbase/client'
 import { extractFieldErrors, getErrorMessage, type FieldErrors } from '@/lib/pocketbase/errors'
@@ -43,6 +44,27 @@ export default function Users() {
   const [passwordConfirm, setPasswordConfirm] = useState('')
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [isLoading, setIsLoading] = useState(false)
+  const [canDelete, setCanDelete] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    if (editingUser?.id) {
+      setCanDelete(null)
+      Promise.all([
+        pb.collection('responses').getList(1, 1, { filter: `user_id="${editingUser.id}"` }),
+        pb.collection('tasks').getList(1, 1, { filter: `user_id="${editingUser.id}"` }),
+        pb.collection('schedules').getList(1, 1, { filter: `assigned_to="${editingUser.id}"` }),
+        pb.collection('action_plans').getList(1, 1, { filter: `responsible_id="${editingUser.id}"` }),
+      ])
+        .then(([responses, tasks, schedules, action_plans]) => {
+          setCanDelete(
+            responses.totalItems + tasks.totalItems + schedules.totalItems + action_plans.totalItems === 0
+          )
+        })
+        .catch(() => setCanDelete(false))
+    } else {
+      setCanDelete(true)
+    }
+  }, [editingUser?.id])
 
   if (currentUser?.role !== 'admin') {
     return (
@@ -85,6 +107,7 @@ export default function Users() {
 
       const formData = new FormData()
       formData.append('name', editingUser.name)
+      formData.append('active', editingUser.active !== false ? 'true' : 'false')
       formData.append('email', editingUser.email)
       formData.append('role', editingUser.role || 'user')
       formData.append('department', dept || '')
@@ -134,6 +157,23 @@ export default function Users() {
     }
   }
 
+  const handleDelete = async () => {
+    if (!editingUser?.id) return
+    if (!confirm('Tem certeza que deseja excluir permanentemente este utilizador? Esta ação não pode ser desfeita.')) return
+    
+    setIsLoading(true)
+    try {
+      await pb.collection('users').delete(editingUser.id)
+      toast({ title: 'Utilizador excluído com sucesso' })
+      setEditingUser(null)
+      if (fetchInitialData) await fetchInitialData()
+    } catch (err) {
+      toast({ title: 'Erro ao excluir', description: getErrorMessage(err), variant: 'destructive' })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -155,6 +195,7 @@ export default function Users() {
             <TableRow className="bg-muted/50">
               <TableHead>Utilizador</TableHead>
               <TableHead>Email</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead>Nível de Acesso</TableHead>
               <TableHead>Departamento</TableHead>
               <TableHead className="text-right">Ações</TableHead>
@@ -178,6 +219,11 @@ export default function Users() {
                   <span className="font-medium">{user.name}</span>
                 </TableCell>
                 <TableCell className="text-muted-foreground">{user.email}</TableCell>
+                <TableCell>
+                  <Badge className={user.active === false ? 'bg-muted text-muted-foreground hover:bg-muted' : 'bg-green-500 hover:bg-green-600 text-white'}>
+                    {user.active === false ? 'Inativo' : 'Ativo'}
+                  </Badge>
+                </TableCell>
                 <TableCell>
                   <Badge
                     variant={
@@ -221,6 +267,21 @@ export default function Users() {
             <DialogTitle>{editingUser?.id ? 'Editar' : 'Novo'} Utilizador</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            {editingUser?.id && (
+              <div className="flex items-center justify-between border p-4 rounded-lg">
+                <div className="space-y-0.5">
+                  <Label>Utilizador Ativo</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Permite ou bloqueia o acesso do utilizador ao sistema.
+                  </p>
+                </div>
+                <Switch
+                  checked={editingUser.active !== false}
+                  onCheckedChange={(v) => setEditingUser((prev) => ({ ...prev!, active: v }))}
+                />
+              </div>
+            )}
+            
             <div className="space-y-2">
               <Label>Foto de Perfil</Label>
               <div className="flex items-center gap-4">
@@ -326,24 +387,40 @@ export default function Users() {
               </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setEditingUser(null)
-                setAvatarFile(null)
-                setPassword('')
-                setPasswordConfirm('')
-                setFieldErrors({})
-              }}
-              disabled={isLoading}
-            >
-              Cancelar
-            </Button>
-            <Button onClick={handleSave} disabled={isLoading}>
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Salvar
-            </Button>
+          <DialogFooter className="sm:justify-between">
+            {editingUser?.id ? (
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={canDelete === false || isLoading}
+                title={canDelete === false ? "O utilizador possui registos vinculados e não pode ser excluído." : ""}
+              >
+                {canDelete === null ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                Excluir
+              </Button>
+            ) : (
+              <div />
+            )}
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setEditingUser(null)
+                  setAvatarFile(null)
+                  setPassword('')
+                  setPasswordConfirm('')
+                  setFieldErrors({})
+                }}
+                disabled={isLoading}
+              >
+                Cancelar
+              </Button>
+              <Button onClick={handleSave} disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Salvar
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
