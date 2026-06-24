@@ -37,7 +37,9 @@ const ProtectedRoute = ({
   if (!isAuthenticated) return <Navigate to="/login" state={{ from: location }} replace />
 
   if (currentUser?.active === false) {
-    return <Unauthorized message="A sua conta foi inativada. Entre em contato com o administrador." />
+    return (
+      <Unauthorized message="A sua conta foi inativada. Entre em contato com o administrador." />
+    )
   }
 
   if (allowedRoles) {

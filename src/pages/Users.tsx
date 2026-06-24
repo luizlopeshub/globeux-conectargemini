@@ -53,11 +53,17 @@ export default function Users() {
         pb.collection('responses').getList(1, 1, { filter: `user_id="${editingUser.id}"` }),
         pb.collection('tasks').getList(1, 1, { filter: `user_id="${editingUser.id}"` }),
         pb.collection('schedules').getList(1, 1, { filter: `assigned_to="${editingUser.id}"` }),
-        pb.collection('action_plans').getList(1, 1, { filter: `responsible_id="${editingUser.id}"` }),
+        pb
+          .collection('action_plans')
+          .getList(1, 1, { filter: `responsible_id="${editingUser.id}"` }),
       ])
         .then(([responses, tasks, schedules, action_plans]) => {
           setCanDelete(
-            responses.totalItems + tasks.totalItems + schedules.totalItems + action_plans.totalItems === 0
+            responses.totalItems +
+              tasks.totalItems +
+              schedules.totalItems +
+              action_plans.totalItems ===
+              0,
           )
         })
         .catch(() => setCanDelete(false))
@@ -159,8 +165,13 @@ export default function Users() {
 
   const handleDelete = async () => {
     if (!editingUser?.id) return
-    if (!confirm('Tem certeza que deseja excluir permanentemente este utilizador? Esta ação não pode ser desfeita.')) return
-    
+    if (
+      !confirm(
+        'Tem certeza que deseja excluir permanentemente este utilizador? Esta ação não pode ser desfeita.',
+      )
+    )
+      return
+
     setIsLoading(true)
     try {
       await pb.collection('users').delete(editingUser.id)
@@ -220,7 +231,13 @@ export default function Users() {
                 </TableCell>
                 <TableCell className="text-muted-foreground">{user.email}</TableCell>
                 <TableCell>
-                  <Badge className={user.active === false ? 'bg-muted text-muted-foreground hover:bg-muted' : 'bg-green-500 hover:bg-green-600 text-white'}>
+                  <Badge
+                    className={
+                      user.active === false
+                        ? 'bg-muted text-muted-foreground hover:bg-muted'
+                        : 'bg-green-500 hover:bg-green-600 text-white'
+                    }
+                  >
                     {user.active === false ? 'Inativo' : 'Ativo'}
                   </Badge>
                 </TableCell>
@@ -281,7 +298,7 @@ export default function Users() {
                 />
               </div>
             )}
-            
+
             <div className="space-y-2">
               <Label>Foto de Perfil</Label>
               <div className="flex items-center gap-4">
@@ -394,9 +411,17 @@ export default function Users() {
                 variant="destructive"
                 onClick={handleDelete}
                 disabled={canDelete === false || isLoading}
-                title={canDelete === false ? "O utilizador possui registos vinculados e não pode ser excluído." : ""}
+                title={
+                  canDelete === false
+                    ? 'O utilizador possui registos vinculados. Inative a conta em vez de excluir.'
+                    : ''
+                }
               >
-                {canDelete === null ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                {canDelete === null ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="mr-2 h-4 w-4" />
+                )}
                 Excluir
               </Button>
             ) : (

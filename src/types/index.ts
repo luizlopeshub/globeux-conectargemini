@@ -7,6 +7,7 @@ export interface User {
   role: Role
   department?: string
   avatar: string
+  active?: boolean
 }
 
 export type EntityFieldType = 'text' | 'number' | 'date'
